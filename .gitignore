@@ -1,0 +1,16 @@
+# build
+target/
+
+# banco de dados local (H2) - nunca versionar dados de clientes
+dados/
+
+# IDEs e sistema
+.idea/
+*.iml
+.vscode/
+.DS_Store
+*.log
+
+# segredos locais
+.env
+config/application-local.properties

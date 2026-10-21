@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
+    <title>Agendamento · Ysa de Paula</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <meta name="theme-color" content="#2a2023">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500;1,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/estilo.css">
+    <link rel="stylesheet" href="/css/site.css">
+</head>
+<body class="pagina-chat">
+<div class="chat">
+    <div class="chat-topo">
+        <a class="voltar" href="/" title="Voltar ao site">
+            <svg class="icone" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        </a>
+        <div class="avatar">B</div>
+        <div>
+            <div class="nome">Bia · <span id="studio">Ysa de Paula</span></div>
+            <div class="status">Assistente virtual · responde na hora</div>
+        </div>
+    </div>
+    <div class="mensagens" id="mensagens"><div class="dia-chat">Hoje</div></div>
+    <div class="sugestoes" id="sugestoes">
+        <button>Quero agendar um horário</button>
+        <button>Quais serviços vocês fazem?</button>
+        <button>Ver meus agendamentos</button>
+    </div>
+    <form id="form">
+        <input id="texto" placeholder="Escreva sua mensagem..." autocomplete="off" maxlength="2000" aria-label="Mensagem">
+        <button type="submit" title="Enviar" aria-label="Enviar">
+            <svg class="icone" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+        </button>
+    </form>
+</div>
+<script src="/js/chat.js"></script>
+</body>
+</html>
