@@ -90,46 +90,52 @@ Regras seguidas:
 
 Localmente, os dados ficam em um banco H2 em arquivo, na pasta `dados/`. Faça backup dessa pasta. Na internet, o sistema usa o perfil `producao` com o PostgreSQL do Supabase (veja abaixo).
 
-## Colocar no ar (Railway + Supabase)
+## Colocar no ar de graça (Render + Supabase)
 
-O sistema roda no **Railway** e guarda os dados no **Supabase** (PostgreSQL). O `Dockerfile` da raiz diz ao Railway como compilar e iniciar o sistema.
+O sistema roda no **Render** e guarda os dados no **Supabase** (PostgreSQL), os dois no plano gratuito. O `Dockerfile` diz como compilar e iniciar o sistema, e o `render.yaml` monta o serviço no Render.
 
 ### 1. Banco no Supabase
 
-1. Crie uma conta em https://supabase.com e um projeto novo (plano Free). Escolha a região **South America (São Paulo)** e anote a senha do banco.
+1. Crie uma conta em https://supabase.com e um projeto novo (plano Free). Na região, escolha **East US (North Virginia)**, a mesma do Render; assim o sistema fica mais rápido. Anote a senha do banco.
 2. No projeto, clique em **Connect** e escolha **Session pooler**. Anote:
-   - **host** (algo como `aws-0-sa-east-1.pooler.supabase.com`)
-   - **port** (`5432`)
-   - **database** (`postgres`)
+   - **host** (algo como `aws-0-us-east-1.pooler.supabase.com`)
    - **user** (algo como `postgres.abcdefghijk`)
 
-Use o *Session pooler*, e não a conexão direta: no plano gratuito, a conexão direta só funciona por IPv6, e o Railway pode não alcançá-la.
+Use o *Session pooler*, e não a conexão direta: no plano gratuito, a conexão direta só funciona por IPv6.
 As tabelas são criadas sozinhas na primeira vez que o sistema sobe.
 
-### 2. Sistema no Railway
+### 2. Sistema no Render
 
-1. Crie uma conta em https://railway.com usando o login do GitHub.
-2. **New Project → Deploy from GitHub repo** e escolha `ysa-de-paula-studio`.
-3. No serviço criado, abra **Variables** e cadastre:
+1. Crie uma conta em https://render.com usando o login do GitHub (não pede cartão).
+2. Clique em **New → Blueprint**, escolha o repositório `ysa-de-paula-studio` e confirme. O Render lê o `render.yaml` e pede os valores:
 
    | Variável | Valor |
    |---|---|
    | `DB_HOST` | host do Session pooler |
-   | `DB_PORTA` | `5432` |
-   | `DB_NOME` | `postgres` |
    | `DB_USUARIO` | user do Session pooler |
    | `DB_SENHA` | senha do banco do Supabase |
    | `LASH_ADMIN_SENHA` | senha forte para o painel |
    | `ANTHROPIC_API_KEY` | chave da Anthropic (para a Bia responder) |
-   | `URL_PUBLICA` | o endereço do passo 4, com `https://` |
+   | `URL_PUBLICA` | deixe em branco por enquanto |
 
-4. Em **Settings → Networking**, clique em **Generate Domain**. Esse é o endereço do sistema (algo como `https://ysa-de-paula-studio.up.railway.app`); coloque-o em `URL_PUBLICA`.
-5. A cada `push` na `main`, o Railway publica a nova versão sozinho.
+3. Espere a primeira publicação terminar (alguns minutos). O endereço aparece no topo do serviço, algo como `https://ysa-de-paula-studio.onrender.com`.
+4. Em **Environment**, preencha `URL_PUBLICA` com esse endereço. Ele vai no link de confirmação pelo WhatsApp.
+5. A cada `push` na `main`, o Render publica a nova versão sozinho.
+
+### 3. Manter acordado (opcional, também grátis)
+
+No plano gratuito, o Render "dorme" depois de 15 minutos sem acesso, e o próximo acesso demora cerca de 1 minuto. Para evitar isso:
+
+1. Crie uma conta em https://uptimerobot.com.
+2. **Add New Monitor → HTTP(s)**, com o endereço do sistema e intervalo de **5 minutos**.
+
+As 750 horas mensais do plano gratuito do Render cobrem um serviço ligado o mês inteiro.
 
 Bom saber:
-- O Railway é pago por uso: ele dá um crédito de teste e depois cobra a partir de US$ 5 por mês no plano Hobby.
-- O plano gratuito do Supabase tem 500 MB, que sobra para o studio, e pausa projetos que ficam uma semana sem nenhum acesso. Com o sistema no ar e sendo usado, isso não acontece.
+- O plano gratuito do Supabase tem 500 MB, que sobra para o studio, e pausa projetos que ficam uma semana sem nenhum acesso. Com o sistema no ar, isso não acontece.
+- Os dados ficam no Supabase, então nada se perde quando o Render dorme ou republica. Só o login do painel e os bloqueios de senha errada, que ficam na memória, recomeçam.
 - Faça backups pelo painel do Supabase (**Database → Backups**) ou com `pg_dump`.
+- O mesmo `Dockerfile` serve para o Railway, que é pago, se um dia você quiser trocar.
 
 ## Testes
 
