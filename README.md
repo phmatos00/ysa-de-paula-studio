@@ -88,7 +88,48 @@ Regras seguidas:
 - Entidades JPA ficam em `model`; o que entra e sai da API e não é entidade fica em `dto` (records).
 - Enums ficam em arquivos próprios no `model` do módulo.
 
-Localmente, os dados ficam em um banco H2 em arquivo, na pasta `dados/`. Faça backup dessa pasta. Na hospedagem, use o perfil `producao` com PostgreSQL (veja `application-producao.properties`).
+Localmente, os dados ficam em um banco H2 em arquivo, na pasta `dados/`. Faça backup dessa pasta. Na internet, o sistema usa o perfil `producao` com o PostgreSQL do Supabase (veja abaixo).
+
+## Colocar no ar (Railway + Supabase)
+
+O sistema roda no **Railway** e guarda os dados no **Supabase** (PostgreSQL). O `Dockerfile` da raiz diz ao Railway como compilar e iniciar o sistema.
+
+### 1. Banco no Supabase
+
+1. Crie uma conta em https://supabase.com e um projeto novo (plano Free). Escolha a região **South America (São Paulo)** e anote a senha do banco.
+2. No projeto, clique em **Connect** e escolha **Session pooler**. Anote:
+   - **host** (algo como `aws-0-sa-east-1.pooler.supabase.com`)
+   - **port** (`5432`)
+   - **database** (`postgres`)
+   - **user** (algo como `postgres.abcdefghijk`)
+
+Use o *Session pooler*, e não a conexão direta: no plano gratuito, a conexão direta só funciona por IPv6, e o Railway pode não alcançá-la.
+As tabelas são criadas sozinhas na primeira vez que o sistema sobe.
+
+### 2. Sistema no Railway
+
+1. Crie uma conta em https://railway.com usando o login do GitHub.
+2. **New Project → Deploy from GitHub repo** e escolha `ysa-de-paula-studio`.
+3. No serviço criado, abra **Variables** e cadastre:
+
+   | Variável | Valor |
+   |---|---|
+   | `DB_HOST` | host do Session pooler |
+   | `DB_PORTA` | `5432` |
+   | `DB_NOME` | `postgres` |
+   | `DB_USUARIO` | user do Session pooler |
+   | `DB_SENHA` | senha do banco do Supabase |
+   | `LASH_ADMIN_SENHA` | senha forte para o painel |
+   | `ANTHROPIC_API_KEY` | chave da Anthropic (para a Bia responder) |
+   | `URL_PUBLICA` | o endereço do passo 4, com `https://` |
+
+4. Em **Settings → Networking**, clique em **Generate Domain**. Esse é o endereço do sistema (algo como `https://ysa-de-paula-studio.up.railway.app`); coloque-o em `URL_PUBLICA`.
+5. A cada `push` na `main`, o Railway publica a nova versão sozinho.
+
+Bom saber:
+- O Railway é pago por uso: ele dá um crédito de teste e depois cobra a partir de US$ 5 por mês no plano Hobby.
+- O plano gratuito do Supabase tem 500 MB, que sobra para o studio, e pausa projetos que ficam uma semana sem nenhum acesso. Com o sistema no ar e sendo usado, isso não acontece.
+- Faça backups pelo painel do Supabase (**Database → Backups**) ou com `pg_dump`.
 
 ## Testes
 
@@ -99,5 +140,4 @@ Localmente, os dados ficam em um banco H2 em arquivo, na pasta `dados/`. Faça b
 ## Próximos passos sugeridos
 
 - Integrar com a API oficial do WhatsApp Business (Meta Cloud API), para a Bia responder direto no WhatsApp e mandar os lembretes sozinha.
-- Publicar em um servidor (Railway, Render, VPS) com o perfil `producao` e PostgreSQL, para as clientes acessarem pela internet.
 - Baixar o estoque automaticamente pelos materiais usados em cada serviço.
