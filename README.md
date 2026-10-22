@@ -37,6 +37,19 @@ Serviços, preços e produtos podem ser editados direto no painel.
 
 Em **Agenda → Lembretes para enviar** aparecem os atendimentos até amanhã que ainda não foram confirmados. O botão **Enviar no WhatsApp** abre a conversa com a cliente já com a mensagem escrita e o link do chat (`/chat.html?tel=...`). Quando a cliente abre o link, a Bia já sabe quem ela é, encontra o agendamento e confirma, ou remarca se ela precisar.
 
+## Segurança
+
+Feita com o Spring Security (`compartilhado/config/SecurityConfig.java` e o pacote `compartilhado/seguranca`):
+
+- **Login no painel**: o site, o chat e a API pública são abertos; o painel e a API administrativa exigem login com o papel `ADMIN`. A senha fica guardada com BCrypt. Sem login, as páginas levam para a tela de entrada e a API responde `401`.
+- **Senha errada**: depois de 5 erros seguidos do mesmo IP, o login fica bloqueado para ele por 15 minutos (até com a senha certa). Os outros IPs continuam entrando.
+- **Chat**: cada mensagem custa uma chamada à IA, então o mesmo IP pode mandar até 20 mensagens a cada 5 minutos. Depois disso, a Bia pede para aguardar.
+- **CSRF**: tudo o que altera dados no painel exige o token CSRF da sessão.
+- **Cabeçalhos de proteção**: política de conteúdo (CSP) que só aceita scripts do próprio sistema, proibição de abrir o sistema dentro de outro site (`X-Frame-Options: DENY`) e outros.
+- **Sessão**: expira após 4 horas sem uso; o cookie não pode ser lido por JavaScript. No perfil `producao`, o cookie só trafega por HTTPS e a senha do painel é obrigatória (`LASH_ADMIN_SENHA`).
+
+Os bloqueios ficam em memória e zeram quando o sistema reinicia.
+
 ## Estrutura
 
 O código é organizado **por funcionalidade**: cada módulo tem o próprio pacote, e dentro dele ficam as camadas daquele módulo.
@@ -63,6 +76,7 @@ src/main/java/br/com/ysadepaula
 └── compartilhado/   o que é usado por todos os módulos
     ├── config/      segurança, propriedades do studio, dados iniciais, rotas web
     ├── controller/  PainelController (CSRF e dados do studio), PublicoController (site público)
+    ├── seguranca/   ProtecaoLogin (bloqueio por senha errada) e LimitadorTentativas
     ├── dto/         InfoStudioResponse
     ├── exception/   NegocioException e TratamentoErros (respostas de erro da API)
     └── util/        Datas (formatação em português)

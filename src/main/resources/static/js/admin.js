@@ -43,8 +43,8 @@ async function api(metodo, url, corpo) {
         opcoes.body = JSON.stringify(corpo);
     }
     const resp = await fetch(url, opcoes);
-    if (resp.redirected && resp.url.includes('/login')) {
-        location.href = '/login';
+    if (resp.status === 401) {
+        location.href = '/login.html';
         throw new Error('Sessão expirada');
     }
     const texto = await resp.text();

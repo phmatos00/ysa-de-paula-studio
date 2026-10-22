@@ -3,6 +3,7 @@
 const params = new URLSearchParams(location.search);
 document.getElementById('erro').hidden = !params.has('erro');
 document.getElementById('saiu').hidden = !params.has('saiu');
+document.getElementById('bloqueado').hidden = !params.has('bloqueado');
 
 fetch('/api/csrf').then((r) => r.json()).then((t) => {
     const campo = document.getElementById('csrf');
