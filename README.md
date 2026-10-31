@@ -120,7 +120,7 @@ Regras seguidas:
 - Entidades JPA ficam em `model`; o que entra e sai da API e não é entidade fica em `dto` (records).
 - Enums ficam em arquivos próprios no `model` do módulo.
 
-Localmente, os dados ficam em um banco H2 em arquivo, na pasta `dados/`. Faça backup dessa pasta. Na hospedagem, use o perfil `producao` com PostgreSQL (veja `application-producao.properties`).
+Localmente, os dados ficam em um banco H2 em arquivo, na pasta `dados/`. Faça backup dessa pasta. Na hospedagem, use o perfil `producao` com PostgreSQL (veja `application-producao.yml`).
 
 ## Testes
 
@@ -128,8 +128,44 @@ Localmente, os dados ficam em um banco H2 em arquivo, na pasta `dados/`. Faça b
 .\mvnw.cmd test
 ```
 
+## Publicação (deploy)
+
+O `Dockerfile` da raiz monta a imagem de produção: compila os dois módulos, roda com um Java menor (JRE), sem usuário root, no fuso de Brasília e com o perfil `producao` ligado. Funciona no Railway, no Render ou em qualquer servidor com Docker.
+
+### No Railway
+
+1. Envie o projeto para o GitHub.
+2. No Railway, crie um projeto com **Deploy from GitHub repo** e escolha o repositório. Ele encontra o `Dockerfile` sozinho.
+3. No mesmo projeto, adicione um banco: **New → Database → PostgreSQL**.
+4. No serviço do sistema, em **Variables**, crie:
+
+   | Variável | Valor |
+   | --- | --- |
+   | `PGHOST` | `${{Postgres.PGHOST}}` |
+   | `PGPORT` | `${{Postgres.PGPORT}}` |
+   | `PGDATABASE` | `${{Postgres.PGDATABASE}}` |
+   | `PGUSER` | `${{Postgres.PGUSER}}` |
+   | `PGPASSWORD` | `${{Postgres.PGPASSWORD}}` |
+   | `LASH_ADMIN_SENHA` | uma senha forte (sem ela o sistema não sobe) |
+   | `IA_API_KEY` | a chave do Gemini |
+   | `URL_PUBLICA` | o endereço público, por exemplo `https://seu-app.up.railway.app` |
+
+   Os `${{Postgres...}}` são referências: o Railway copia os valores do banco.
+5. Em **Settings → Networking**, clique em **Generate Domain** para ganhar o endereço `https://...up.railway.app`, e coloque esse endereço no `URL_PUBLICA`.
+6. Ative os backups do banco em **Postgres → Backups**.
+
+### Testar a imagem no seu computador
+
+Com o Docker Desktop aberto:
+
+```powershell
+docker network create studio-net
+docker run -d --name studio-pg --network studio-net -e POSTGRES_USER=studio -e POSTGRES_PASSWORD=teste -e POSTGRES_DB=studio postgres:16
+docker build -t ysadepaula-studio .
+docker run --rm --network studio-net -p 8080:8080 -e PGHOST=studio-pg -e PGPORT=5432 -e PGDATABASE=studio -e PGUSER=studio -e PGPASSWORD=teste -e LASH_ADMIN_SENHA=uma-senha -e IA_API_KEY ysadepaula-studio
+```
+
 ## Próximos passos sugeridos
 
 - Integrar com a API oficial do WhatsApp Business (Meta Cloud API), para a Bia responder direto no WhatsApp e mandar os lembretes sozinha.
-- Publicar em um servidor (Railway, Render, VPS) com o perfil `producao` e PostgreSQL, para as clientes acessarem pela internet.
 - Baixar o estoque automaticamente pelos materiais usados em cada serviço.

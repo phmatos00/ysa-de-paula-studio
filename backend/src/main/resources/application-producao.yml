@@ -1,0 +1,21 @@
+# Perfil usado na hospedagem (ativado por SPRING_PROFILES_ACTIVE=producao, que o Dockerfile já define).
+# Os valores vêm das variáveis de ambiente do servidor e sobrescrevem os do application.yml.
+
+spring:
+  # Banco PostgreSQL: o Railway cria estas variáveis no serviço do banco;
+  # no serviço do sistema, elas são referenciadas (veja o README)
+  datasource:
+    url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
+
+studio:
+  # sem valor padrão: o sistema não sobe em produção sem uma senha definida
+  admin-senha: ${LASH_ADMIN_SENHA}
+
+server:
+  servlet:
+    session:
+      cookie:
+        # o cookie de login só trafega por HTTPS
+        secure: true
