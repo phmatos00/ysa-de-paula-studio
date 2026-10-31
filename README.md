@@ -128,41 +128,54 @@ Localmente, os dados ficam em um banco H2 em arquivo, na pasta `dados/`. Faça b
 .\mvnw.cmd test
 ```
 
-## Publicação (deploy)
+## Colocar no ar de graça (Render + Supabase)
 
-O `Dockerfile` da raiz monta a imagem de produção: compila os dois módulos, roda com um Java menor (JRE), sem usuário root, no fuso de Brasília e com o perfil `producao` ligado. Funciona no Railway, no Render ou em qualquer servidor com Docker.
+O sistema roda no **Render** e guarda os dados no **Supabase** (PostgreSQL), os dois no plano gratuito. O `Dockerfile` da raiz monta a imagem de produção: compila os dois módulos, roda com um Java menor (JRE), sem usuário root, no fuso de Brasília, com o perfil `producao` ligado e dentro dos 512 MB do plano gratuito. O `render.yaml` monta o serviço no Render.
 
-### No Railway
+### 1. Banco no Supabase
 
-1. Envie o projeto para o GitHub.
-2. No Railway, crie um projeto com **Deploy from GitHub repo** e escolha o repositório. Ele encontra o `Dockerfile` sozinho.
-3. No mesmo projeto, adicione um banco: **New → Database → PostgreSQL**.
-4. No serviço do sistema, em **Variables**, crie:
+1. Crie uma conta em https://supabase.com e um projeto novo (plano Free). Na região, escolha **East US (North Virginia)**, a mesma do Render; assim o sistema fica mais rápido. Anote a senha do banco.
+2. No projeto, clique em **Connect** e escolha **Session pooler**. Anote o **host** (algo como `aws-0-us-east-1.pooler.supabase.com`) e o **user** (algo como `postgres.abcdefghijk`).
+
+Use o *Session pooler*, e não a conexão direta: no plano gratuito, a conexão direta só funciona por IPv6. As tabelas são criadas sozinhas na primeira vez que o sistema sobe.
+
+### 2. Sistema no Render
+
+1. Crie uma conta em https://render.com usando o login do GitHub (não pede cartão).
+2. Clique em **New → Blueprint**, escolha o repositório `ysa-de-paula-studio` e confirme. O Render lê o `render.yaml` e pede os valores:
 
    | Variável | Valor |
    | --- | --- |
-   | `PGHOST` | `${{Postgres.PGHOST}}` |
-   | `PGPORT` | `${{Postgres.PGPORT}}` |
-   | `PGDATABASE` | `${{Postgres.PGDATABASE}}` |
-   | `PGUSER` | `${{Postgres.PGUSER}}` |
-   | `PGPASSWORD` | `${{Postgres.PGPASSWORD}}` |
-   | `LASH_ADMIN_SENHA` | uma senha forte (sem ela o sistema não sobe) |
-   | `IA_API_KEY` | a chave do Gemini |
-   | `URL_PUBLICA` | o endereço público, por exemplo `https://seu-app.up.railway.app` |
+   | `DB_HOST` | host do Session pooler |
+   | `DB_USUARIO` | user do Session pooler |
+   | `DB_SENHA` | senha do banco do Supabase |
+   | `LASH_ADMIN_SENHA` | senha forte para o painel (sem ela o sistema não sobe) |
+   | `IA_API_KEY` | chave do Gemini (para a Bia responder) |
+   | `URL_PUBLICA` | deixe em branco por enquanto |
 
-   Os `${{Postgres...}}` são referências: o Railway copia os valores do banco.
-5. Em **Settings → Networking**, clique em **Generate Domain** para ganhar o endereço `https://...up.railway.app`, e coloque esse endereço no `URL_PUBLICA`.
-6. Ative os backups do banco em **Postgres → Backups**.
+3. Espere a primeira publicação terminar (alguns minutos). O endereço aparece no topo do serviço, algo como `https://ysa-de-paula-studio.onrender.com`.
+4. Em **Environment**, preencha `URL_PUBLICA` com esse endereço. Ele vai no link de confirmação pelo WhatsApp.
+5. A cada `push` na `main`, o Render publica a nova versão sozinho.
+
+### 3. Manter acordado (opcional, também grátis)
+
+No plano gratuito, o Render "dorme" depois de 15 minutos sem acesso, e o próximo acesso demora cerca de 1 minuto. Para evitar isso, crie uma conta em https://uptimerobot.com e um monitor **HTTP(s)** com o endereço do sistema e intervalo de **5 minutos**. As 750 horas mensais do plano gratuito do Render cobrem um serviço ligado o mês inteiro.
+
+Bom saber:
+- O plano gratuito do Supabase tem 500 MB, que sobram para o studio, e pausa projetos que ficam uma semana sem nenhum acesso. Com o sistema no ar, isso não acontece.
+- Os dados ficam no Supabase, então nada se perde quando o Render dorme ou republica. Só o login do painel, as conversas da Bia e os bloqueios de senha errada, que ficam na memória, recomeçam.
+- Faça backups pelo painel do Supabase (**Database → Backups**) ou com `pg_dump`.
+- O mesmo `Dockerfile` serve para o Railway (pago) ou qualquer servidor com Docker.
 
 ### Testar a imagem no seu computador
 
-Com o Docker Desktop aberto:
+Com o Docker Desktop aberto, este teste simula o Render (porta `PORT` e 512 MB) com um PostgreSQL local, sem SSL:
 
 ```powershell
 docker network create studio-net
-docker run -d --name studio-pg --network studio-net -e POSTGRES_USER=studio -e POSTGRES_PASSWORD=teste -e POSTGRES_DB=studio postgres:16
+docker run -d --name studio-pg --network studio-net -e POSTGRES_PASSWORD=teste postgres:16
 docker build -t ysadepaula-studio .
-docker run --rm --network studio-net -p 8080:8080 -e PGHOST=studio-pg -e PGPORT=5432 -e PGDATABASE=studio -e PGUSER=studio -e PGPASSWORD=teste -e LASH_ADMIN_SENHA=uma-senha -e IA_API_KEY ysadepaula-studio
+docker run --rm --network studio-net -m 512m -p 8080:10000 -e PORT=10000 -e DB_HOST=studio-pg -e DB_USUARIO=postgres -e DB_SENHA=teste -e DB_SSL=disable -e LASH_ADMIN_SENHA=uma-senha -e IA_API_KEY ysadepaula-studio
 ```
 
 ## Próximos passos sugeridos

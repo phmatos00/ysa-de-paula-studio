@@ -1,0 +1,28 @@
+# Blueprint do Render: cria o serviço com o Dockerfile da raiz.
+# No Render: New > Blueprint > escolha este repositório. Ele pede os valores marcados com sync: false.
+services:
+  - type: web
+    name: ysa-de-paula-studio
+    runtime: docker
+    plan: free
+    region: virginia
+    branch: main
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORTA
+        value: "5432"
+      - key: DB_NOME
+        value: postgres
+      - key: DB_USUARIO
+        sync: false
+      - key: DB_SENHA
+        sync: false
+      - key: LASH_ADMIN_SENHA
+        sync: false
+      - key: IA_API_KEY
+        sync: false
+      - key: URL_PUBLICA
+        sync: false

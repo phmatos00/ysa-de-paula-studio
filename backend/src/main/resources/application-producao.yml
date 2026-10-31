@@ -2,12 +2,15 @@
 # Os valores vêm das variáveis de ambiente do servidor e sobrescrevem os do application.yml.
 
 spring:
-  # Banco PostgreSQL: o Railway cria estas variáveis no serviço do banco;
-  # no serviço do sistema, elas são referenciadas (veja o README)
+  # Banco PostgreSQL do Supabase. Use os dados do "Session pooler" (Connect > Session pooler),
+  # que funciona em qualquer hospedagem; a conexão direta do plano gratuito só aceita IPv6.
   datasource:
-    url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
-    username: ${PGUSER}
-    password: ${PGPASSWORD}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORTA:5432}/${DB_NOME:postgres}?sslmode=${DB_SSL:require}
+    username: ${DB_USUARIO}
+    password: ${DB_SENHA}
+    hikari:
+      # o plano gratuito do Supabase limita as conexões simultâneas
+      maximum-pool-size: 5
 
 studio:
   # sem valor padrão: o sistema não sobe em produção sem uma senha definida

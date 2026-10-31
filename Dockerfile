@@ -1,4 +1,4 @@
-# Imagem do sistema para a hospedagem (Railway, Render ou qualquer servidor com Docker).
+# Imagem do sistema para a hospedagem (Render, Railway ou qualquer servidor com Docker).
 # Duas etapas: a primeira compila com o JDK; a segunda só leva o jar e um Java menor (JRE).
 
 # ---------- 1. Compilação ----------
@@ -25,7 +25,7 @@ COPY --from=build /app/backend/target/backend-1.0.0.jar app.jar
 ENV SPRING_PROFILES_ACTIVE=producao
 # servidores rodam em UTC; a agenda precisa do horário de Brasília para saber o que já passou
 ENV TZ=America/Sao_Paulo
-# usa até 75% da memória do container (o padrão do Java é 25%)
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75"
+# cabe nos 512 MB do plano gratuito do Render e acorda mais rápido depois de dormir
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=60 -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k"
 EXPOSE 8080
 ENTRYPOINT ["sh", "-c", "exec java -Duser.timezone=America/Sao_Paulo $JAVA_OPTS -jar app.jar"]
