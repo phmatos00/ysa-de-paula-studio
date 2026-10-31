@@ -1,7 +1,9 @@
-target/
-dados/
-.git/
-.idea/
-.vscode/
+# o que não vai para dentro da imagem
+.git
+.idea
+.run
+*.iml
+**/target
+dados
 *.log
 .env
