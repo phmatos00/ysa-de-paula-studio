@@ -5,19 +5,17 @@ import br.com.ysadepaula.cliente.model.Cliente;
 import br.com.ysadepaula.compartilhado.config.StudioProperties;
 import br.com.ysadepaula.compartilhado.exception.NegocioException;
 import br.com.ysadepaula.compartilhado.util.Datas;
-import com.anthropic.client.AnthropicClient;
-import com.anthropic.client.okhttp.AnthropicOkHttpClient;
-import com.anthropic.core.JsonValue;
-import com.anthropic.errors.AnthropicException;
-import com.anthropic.errors.AnthropicServiceException;
-import com.anthropic.errors.RateLimitException;
-import com.anthropic.models.messages.*;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.time.DayOfWeek;
 import java.time.Duration;
@@ -26,44 +24,48 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * Atendente virtual das clientes. Usa o Claude com ferramentas (tool use): a cada mensagem da cliente,
- * o modelo pode consultar serviços e horários, agendar, confirmar, remarcar ou cancelar, e então responde.
+ * Atendente virtual das clientes. Usa um modelo de IA com ferramentas (function calling): a cada mensagem da
+ * cliente, o modelo pode consultar serviços e horários, agendar, confirmar, remarcar ou cancelar, e então responde.
+ * <p>
+ * Fala com qualquer API compatível com a da OpenAI (Google Gemini, Groq, OpenAI...). O endereço fica em
+ * {@code studio.ia-url}, o modelo em {@code studio.modelo-ia} e a chave na variável de ambiente IA_API_KEY.
  */
 @Service
 public class AtendenteIA {
 
     private static final Logger log = LoggerFactory.getLogger(AtendenteIA.class);
     private static final int MAX_PASSOS_FERRAMENTAS = 10;
+    private static final int TENTATIVAS_API = 2;
     private static final Duration EXPIRACAO_CONVERSA = Duration.ofHours(12);
 
     private static final String MSG_INDISPONIVEL = "Ai, tive um probleminha técnico aqui 😕 Pode tentar de novo "
             + "em alguns instantes? Se preferir, chame a gente direto pelo WhatsApp.";
 
     private static final class Conversa {
-        final List<MessageParam> mensagens = new ArrayList<>();
+        final List<Map<String, Object>> mensagens = new ArrayList<>();
         String telefone;
         Instant ultimoAcesso = Instant.now();
-    }
-
-    private static final class RespostaRecusada extends RuntimeException {
     }
 
     private final Map<String, Conversa> conversas = new ConcurrentHashMap<>();
     private final FerramentasAtendimento ferramentas;
     private final StudioProperties studio;
     private final ObjectMapper json;
-    private volatile AnthropicClient client;
+    private final RestClient http;
 
-    public AtendenteIA(FerramentasAtendimento ferramentas, StudioProperties studio, ObjectMapper json) {
+    public AtendenteIA(FerramentasAtendimento ferramentas, StudioProperties studio, ObjectMapper json,
+                       RestClient.Builder http) {
         this.ferramentas = ferramentas;
         this.studio = studio;
         this.json = json;
+        this.http = http.baseUrl(studio.iaUrl()).build();
     }
 
     public String saudacao(String telefone) {
@@ -81,20 +83,16 @@ public class AtendenteIA {
             if (telefone != null && !telefone.isBlank()) conversa.telefone = Cliente.normalizarTelefone(telefone);
 
             int tamanhoAntes = conversa.mensagens.size();
-            conversa.mensagens.add(MessageParam.builder()
-                    .role(MessageParam.Role.USER)
-                    .content(mensagemCliente)
-                    .build());
+            conversa.mensagens.add(Map.of("role", "user", "content", mensagemCliente));
             try {
                 return executarTurno(conversa);
-            } catch (RespostaRecusada e) {
-                log.warn("O modelo recusou responder a esta mensagem");
-            } catch (RateLimitException e) {
-                log.warn("Limite de uso da API atingido", e);
-            } catch (AnthropicServiceException e) {
-                log.error("Erro da API ({}): {}", e.statusCode(), e.getMessage());
-            } catch (AnthropicException e) {
-                log.error("Falha ao chamar a API (verifique a ANTHROPIC_API_KEY e a internet)", e);
+            } catch (RestClientResponseException e) {
+                if (e.getStatusCode().value() == 429) log.warn("Limite de uso da API de IA atingido");
+                else log.error("Erro da API de IA ({}): {}", e.getStatusCode().value(), e.getResponseBodyAsString());
+            } catch (ResourceAccessException e) {
+                log.error("Falha ao chamar a API de IA (verifique a internet e studio.ia-url)", e);
+            } catch (IllegalStateException e) {
+                log.error(e.getMessage());
             }
             // desfaz o turno incompleto para a conversa continuar válida na próxima mensagem
             conversa.mensagens.subList(tamanhoAntes, conversa.mensagens.size()).clear();
@@ -103,60 +101,114 @@ public class AtendenteIA {
     }
 
     private String executarTurno(Conversa conversa) {
+        String chave = System.getenv("IA_API_KEY");
+        if (chave == null || chave.isBlank()) {
+            throw new IllegalStateException("Variável de ambiente IA_API_KEY não definida: o chat não vai responder");
+        }
         for (int passo = 0; passo < MAX_PASSOS_FERRAMENTAS; passo++) {
-            Message resposta = cliente().messages().create(MessageCreateParams.builder()
-                    .model(studio.modeloIa())
-                    .maxTokens(16000L)
-                    // conversa de chat: esforço baixo deixa as respostas rápidas e econômicas
-                    .outputConfig(OutputConfig.builder().effort(OutputConfig.Effort.LOW).build())
-                    // se o modelo principal recusar, o servidor tenta automaticamente um modelo alternativo
-                    .putAdditionalHeader("anthropic-beta", "server-side-fallback-2026-07-01")
-                    .putAdditionalBodyProperty("fallbacks", JsonValue.from("default"))
-                    .system(promptSistema(conversa.telefone))
-                    .tools(ferramentas.definicoes().stream().map(ToolUnion::ofTool).toList())
-                    .messages(conversa.mensagens)
-                    .build());
+            List<Map<String, Object>> mensagens = new ArrayList<>();
+            mensagens.add(Map.of("role", "system", "content", promptSistema(conversa.telefone)));
+            mensagens.addAll(conversa.mensagens);
 
-            StopReason motivo = resposta.stopReason().orElse(StopReason.END_TURN);
-            if (motivo.equals(StopReason.REFUSAL)) {
-                throw new RespostaRecusada();
-            }
-            conversa.mensagens.add(resposta.toParam());
+            Map<String, Object> corpo = new LinkedHashMap<>();
+            corpo.put("messages", mensagens);
+            corpo.put("tools", ferramentas.definicoes());
 
-            List<ToolUseBlock> chamadas = resposta.content().stream()
-                    .flatMap(b -> b.toolUse().stream()).toList();
-            if (!motivo.equals(StopReason.TOOL_USE) || chamadas.isEmpty()) {
-                String texto = resposta.content().stream()
-                        .flatMap(b -> b.text().stream())
-                        .map(TextBlock::text)
-                        .collect(Collectors.joining("\n")).trim();
-                return texto.isEmpty() ? "Pode me contar um pouquinho mais? 😊" : texto;
+            Map<String, Object> mensagem = mensagemDa(chamarApi(corpo, chave));
+            // guarda a mensagem como veio, para a API reconhecer as próprias chamadas de ferramenta depois
+            conversa.mensagens.add(mensagem);
+
+            List<Map<String, Object>> chamadas = lista(mensagem.get("tool_calls"));
+            if (chamadas.isEmpty()) {
+                Object texto = mensagem.get("content");
+                String t = texto == null ? "" : texto.toString().trim();
+                return t.isEmpty() ? "Pode me contar um pouquinho mais? 😊" : t;
             }
 
-            // todas as respostas das ferramentas voltam numa única mensagem
-            List<ContentBlockParam> resultados = new ArrayList<>();
-            for (ToolUseBlock chamada : chamadas) resultados.add(ContentBlockParam.ofToolResult(executar(chamada)));
-            conversa.mensagens.add(MessageParam.builder()
-                    .role(MessageParam.Role.USER)
-                    .contentOfBlockParams(resultados)
-                    .build());
+            for (Map<String, Object> chamada : chamadas) {
+                conversa.mensagens.add(Map.of("role", "tool",
+                        "tool_call_id", String.valueOf(chamada.get("id")),
+                        "content", executar(chamada)));
+            }
         }
         return "Desculpa a demora! Pode repetir o que você precisa, por favor? 🙏";
     }
 
-    private ToolResultBlockParam executar(ToolUseBlock chamada) {
-        ToolResultBlockParam.Builder resultado = ToolResultBlockParam.builder().toolUseId(chamada.id());
+    /**
+     * Chama a API. Se o modelo estiver sobrecarregado (503) ou no limite (429), espera um pouco e tenta de novo;
+     * se continuar assim, passa para o modelo reserva.
+     */
+    private Map<String, Object> chamarApi(Map<String, Object> corpo, String chave) {
+        List<String> modelos = new ArrayList<>(List.of(studio.modeloIa()));
+        String reserva = studio.modeloIaReserva();
+        if (reserva != null && !reserva.isBlank() && !reserva.equals(studio.modeloIa())) modelos.add(reserva);
+
+        RestClientResponseException ultimoErro = null;
+        for (String modelo : modelos) {
+            corpo.put("model", modelo);
+            for (int tentativa = 1; tentativa <= TENTATIVAS_API; tentativa++) {
+                try {
+                    return http.post().uri("/chat/completions")
+                            .header("Authorization", "Bearer " + chave)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(corpo)
+                            .retrieve()
+                            .body(new ParameterizedTypeReference<Map<String, Object>>() {
+                            });
+                } catch (RestClientResponseException e) {
+                    int status = e.getStatusCode().value();
+                    if (status != 503 && status != 429) throw e;
+                    ultimoErro = e;
+                    log.warn("Modelo {} respondeu {} ({}/{})", modelo, status, tentativa, TENTATIVAS_API);
+                    if (tentativa < TENTATIVAS_API) esperar(1000L * tentativa);
+                }
+            }
+        }
+        throw ultimoErro;
+    }
+
+    private static void esperar(long ms) {
         try {
-            Map<String, Object> entrada = chamada._input().convert(new TypeReference<Map<String, Object>>() {
-            });
-            Object saida = ferramentas.executar(chamada.name(), entrada == null ? Map.of() : entrada);
-            log.info("IA usou {} {}", chamada.name(), entrada);
-            return resultado.content(json.writeValueAsString(saida)).build();
+            Thread.sleep(ms);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> mensagemDa(Map<String, Object> resposta) {
+        List<Map<String, Object>> escolhas = resposta == null ? List.of() : lista(resposta.get("choices"));
+        if (escolhas.isEmpty() || !(escolhas.get(0).get("message") instanceof Map<?, ?> m)) {
+            throw new IllegalStateException("Resposta da API de IA sem mensagem: " + resposta);
+        }
+        Map<String, Object> mensagem = new LinkedHashMap<>((Map<String, Object>) m);
+        mensagem.put("role", "assistant");
+        return mensagem;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> lista(Object valor) {
+        return valor instanceof List<?> l ? (List<Map<String, Object>>) l : List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String executar(Map<String, Object> chamada) {
+        Map<String, Object> funcao = chamada.get("function") instanceof Map<?, ?> f ? (Map<String, Object>) f : Map.of();
+        String nome = String.valueOf(funcao.get("name"));
+        try {
+            Object argumentos = funcao.get("arguments");
+            Map<String, Object> entrada = argumentos == null || argumentos.toString().isBlank()
+                    ? Map.of()
+                    : json.readValue(argumentos.toString(), new TypeReference<Map<String, Object>>() {
+                    });
+            Object saida = ferramentas.executar(nome, entrada == null ? Map.of() : entrada);
+            log.info("IA usou {} {}", nome, entrada);
+            return json.writeValueAsString(saida);
         } catch (NegocioException e) {
-            return resultado.content(e.getMessage()).isError(true).build();
+            return "Erro: " + e.getMessage();
         } catch (Exception e) {
-            log.error("Erro ao executar a ferramenta {}", chamada.name(), e);
-            return resultado.content("Erro interno ao executar a ação: " + e.getMessage()).isError(true).build();
+            log.error("Erro ao executar a ferramenta {}", nome, e);
+            return "Erro interno ao executar a ação: " + e.getMessage();
         }
     }
 
@@ -204,16 +256,6 @@ public class AtendenteIA {
                     + ". Use esse telefone para buscar os agendamentos dela e ajudar a confirmar a presença.\n";
         }
         return prompt;
-    }
-
-    private AnthropicClient cliente() {
-        if (client == null) {
-            synchronized (this) {
-                // lê ANTHROPIC_API_KEY das variáveis de ambiente
-                if (client == null) client = AnthropicOkHttpClient.fromEnv();
-            }
-        }
-        return client;
     }
 
     @Scheduled(fixedDelay = 30 * 60 * 1000)

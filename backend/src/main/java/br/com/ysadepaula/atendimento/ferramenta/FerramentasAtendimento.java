@@ -7,8 +7,6 @@ import br.com.ysadepaula.cliente.model.Cliente;
 import br.com.ysadepaula.compartilhado.exception.NegocioException;
 import br.com.ysadepaula.servico.model.Servico;
 import br.com.ysadepaula.servico.repository.ServicoRepository;
-import com.anthropic.core.JsonValue;
-import com.anthropic.models.messages.Tool;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -35,7 +33,7 @@ public class FerramentasAtendimento {
         this.servicos = servicos;
     }
 
-    public List<Tool> definicoes() {
+    public List<Map<String, Object>> definicoes() {
         Map<String, Object> telefone = prop("string", "Telefone da cliente com DDD, só números. Ex.: 11987654321");
         Map<String, Object> agendamentoId = prop("integer", "ID do agendamento, obtido em buscar_agendamentos");
         return List.of(
@@ -150,18 +148,16 @@ public class FerramentasAtendimento {
         return Map.of("type", tipo, "description", descricao);
     }
 
-    private static Tool tool(String nome, String descricao, Map<String, Object> props, List<String> obrigatorios) {
-        Tool.InputSchema.Properties.Builder propriedades = Tool.InputSchema.Properties.builder();
-        props.forEach((k, v) -> propriedades.putAdditionalProperty(k, JsonValue.from(v)));
-        return Tool.builder()
-                .name(nome)
-                .description(descricao)
-                .inputSchema(Tool.InputSchema.builder()
-                        .properties(propriedades.build())
-                        .required(obrigatorios)
-                        .putAdditionalProperty("additionalProperties", JsonValue.from(false))
-                        .build())
-                .strict(true)
-                .build();
+    /** Definição no formato de function calling das APIs compatíveis com a OpenAI. */
+    private static Map<String, Object> tool(String nome, String descricao, Map<String, Object> props,
+                                            List<String> obrigatorios) {
+        Map<String, Object> funcao = new LinkedHashMap<>();
+        funcao.put("name", nome);
+        funcao.put("description", descricao);
+        // ferramenta sem parâmetros vai sem schema: alguns provedores recusam um objeto sem propriedades
+        if (!props.isEmpty()) {
+            funcao.put("parameters", Map.of("type", "object", "properties", props, "required", obrigatorios));
+        }
+        return Map.of("type", "function", "function", funcao);
     }
 }

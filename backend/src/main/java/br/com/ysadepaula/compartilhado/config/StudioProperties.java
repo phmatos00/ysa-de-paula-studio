@@ -21,6 +21,8 @@ public record StudioProperties(
         int intervaloMinutos,
         String adminUsuario,
         String adminSenha,
-        String modeloIa
+        String modeloIa,
+        String modeloIaReserva,
+        String iaUrl
 ) {
 }

@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SegurancaTest {
 
     @Autowired MockMvc mvc;
-    // o chat é testado sem chamar a API da Anthropic
+    // o chat é testado sem chamar a API de IA
     @MockitoBean AtendenteIA atendente;
 
     @Test

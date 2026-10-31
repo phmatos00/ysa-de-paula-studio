@@ -5,21 +5,23 @@ Sistema de gestão para Lash Designer, feito em Java 21 com Spring Boot.
 - **Agenda**: horários livres calculados a partir do funcionamento e da duração de cada serviço, sem conflitos. Status: a confirmar, confirmado, realizado, cancelado ou faltou.
 - **Financeiro**: entradas e saídas por categoria e forma de pagamento, com resumo mensal. Quando um atendimento é concluído, o valor é lançado no caixa sozinho.
 - **Estoque**: produtos com estoque mínimo e alerta de reposição. Cada entrada e saída fica no histórico, e uma compra pode virar uma saída no financeiro.
-- **Atendente virtual (Bia)**: chat público em que a cliente conversa com uma IA (Claude, da Anthropic). A IA tira dúvidas, consulta horários, agenda, confirma, remarca e cancela, sempre usando os dados reais do sistema.
+- **Atendente virtual (Bia)**: chat público em que a cliente conversa com uma IA (Google Gemini, no plano gratuito, ou qualquer API compatível com a da OpenAI). A IA tira dúvidas, consulta horários, agenda, confirma, remarca e cancela, sempre usando os dados reais do sistema.
 
 ## Como rodar
 
-1. Crie uma chave de API em https://console.anthropic.com e coloque-a na variável de ambiente `ANTHROPIC_API_KEY`. No PowerShell:
+1. Crie uma chave gratuita do Gemini em https://aistudio.google.com/apikey e coloque-a na variável de ambiente `IA_API_KEY`. No PowerShell:
 
    ```powershell
-   $env:ANTHROPIC_API_KEY = "sk-ant-..."
+   $env:IA_API_KEY = "sua-chave-aqui"
    ```
 
 2. Na pasta do projeto, rode o comando abaixo. Ele precisa do Java 21 ou mais novo, e o Maven é baixado sozinho.
 
    ```powershell
-   .\mvnw.cmd spring-boot:run
+   .\mvnw.cmd -pl backend -am spring-boot:run
    ```
+
+   No IntelliJ: abra a pasta do projeto (ele reconhece os módulos Maven) e rode a configuração **YsaDePaula**, que já vem pronta em `.run/`.
 
 3. Acesse:
    - Site do studio (serviços, preços, contato e botão de agendar): http://localhost:8080
@@ -28,9 +30,11 @@ Sistema de gestão para Lash Designer, feito em Java 21 com Spring Boot.
 
 Sem a chave de API, o painel funciona normalmente. Só o chat responde que está com um problema técnico.
 
+Para usar outro provedor compatível com a API da OpenAI (Groq, OpenAI etc.), defina também `IA_URL` (endereço da API) e `IA_MODELO` (nome do modelo). Se o modelo principal estiver sobrecarregado, a Bia tenta de novo e depois usa o modelo reserva (`IA_MODELO_RESERVA`).
+
 ## Personalização
 
-Em `src/main/resources/application.properties` você define o nome do studio, o endereço, os dias e horários de funcionamento, o intervalo entre horários e o endereço público do sistema (`studio.url-publica`), que vai no link de confirmação.
+Em `backend/src/main/resources/application.properties` você define o nome do studio, o endereço, os dias e horários de funcionamento, o intervalo entre horários e o endereço público do sistema (`studio.url-publica`), que vai no link de confirmação.
 Serviços, preços e produtos podem ser editados direto no painel.
 
 ## Como funciona a confirmação
@@ -52,10 +56,22 @@ Os bloqueios ficam em memória e zeram quando o sistema reinicia.
 
 ## Estrutura
 
-O código é organizado **por funcionalidade**: cada módulo tem o próprio pacote, e dentro dele ficam as camadas daquele módulo.
+O projeto é um **Maven multi-módulo** com duas partes:
 
 ```
-src/main/java/br/com/ysadepaula
+ysa-de-paula-studio/      pom.xml pai (packaging pom): agrupa os módulos
+├── frontend/             telas: HTML, CSS e JavaScript puros, sem build próprio
+│   └── src/              index.html, login.html, chat.html, admin/, css/, js/
+└── backend/              API REST em Spring Boot; depende do frontend
+    └── src/main/java     código Java (abaixo)
+```
+
+O módulo `frontend` vira um jar com os arquivos dentro de `static/`. O `backend` depende dele, e o Spring Boot serve tudo que está em `classpath:/static`. Assim, o jar final do backend leva as telas junto e o sistema continua sendo publicado como um único arquivo.
+
+No backend, o código é organizado **por funcionalidade**: cada domínio tem o próprio pacote, e dentro dele ficam as camadas daquele domínio.
+
+```
+backend/src/main/java/br/com/ysadepaula
 ├── YsaDePaulaApplication.java
 ├── agenda/          agendamentos, horários livres, confirmação e lembretes
 │   ├── controller/  AgendaController
@@ -63,7 +79,7 @@ src/main/java/br/com/ysadepaula
 │   ├── model/       Agendamento, StatusAgendamento, OrigemAgendamento
 │   ├── repository/  AgendamentoRepository
 │   └── service/     AgendaService
-├── atendimento/     atendente virtual (Bia) com o Claude
+├── atendimento/     atendente virtual (Bia) com IA
 │   ├── controller/  ChatController
 │   ├── dto/         MensagemChatRequest, RespostaChatResponse
 │   ├── ferramenta/  FerramentasAtendimento (ações que a IA pode executar)
@@ -80,10 +96,10 @@ src/main/java/br/com/ysadepaula
     ├── dto/         InfoStudioResponse
     ├── exception/   NegocioException e TratamentoErros (respostas de erro da API)
     └── util/        Datas (formatação em português)
-src/main/resources/static   site (index.html), login, painel (admin/), chat, CSS e JS
 ```
 
 Regras seguidas:
+- O `frontend` não conhece o `backend`: ele só chama a API por HTTP (`/api/...`).
 - Um módulo pode usar o `service` ou o `model` de outro (a agenda lança no financeiro, por exemplo), mas nunca o `controller` de outro.
 - Entidades JPA ficam em `model`; o que entra e sai da API e não é entidade fica em `dto` (records).
 - Enums ficam em arquivos próprios no `model` do módulo.

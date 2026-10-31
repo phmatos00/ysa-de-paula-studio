@@ -1,0 +1,11 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="YsaDePaula" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="br.com.ysadepaula.YsaDePaulaApplication" />
+    <module name="backend" />
+    <!-- raiz do projeto, para o banco H2 continuar em ./dados -->
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+    <method v="2">
+      <option name="Make" enabled="true" />
+    </method>
+  </configuration>
+</component>
