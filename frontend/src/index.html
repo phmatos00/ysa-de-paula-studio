@@ -15,8 +15,8 @@
 <body>
 <header class="topo-site">
     <div class="marca">
-        <span class="monograma">YP</span>
-        <div><div class="marca-nome" data-studio>Ysa de Paula</div><div class="marca-sub">Lash Designer</div></div>
+        <span class="monograma" data-monograma>YP</span>
+        <div><div class="marca-nome" data-studio>Ysa de Paula</div><div class="marca-sub" data-especialidade>Lash Designer</div></div>
     </div>
     <nav>
         <a href="#servicos">Serviços</a>
@@ -69,6 +69,15 @@
             <svg class="icone" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <div><strong>Atendimento online</strong><span>Agende, confirme ou remarque a qualquer hora pelo nosso chat.</span></div>
         </div>
+        <!-- WhatsApp e Instagram só aparecem quando estão preenchidos no application.properties -->
+        <div class="info-item" id="contato-whatsapp" hidden>
+            <svg class="icone" viewBox="0 0 24 24"><path d="M5 19l1.2-3.6A8 8 0 1 1 9 18.6L5 19z"/></svg>
+            <div><strong>WhatsApp</strong><span><a id="link-whatsapp" target="_blank" rel="noopener"></a></span></div>
+        </div>
+        <div class="info-item" id="contato-instagram" hidden>
+            <svg class="icone" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="5"/><circle cx="12" cy="12" r="3.5"/><circle cx="17" cy="7" r=".8"/></svg>
+            <div><strong>Instagram</strong><span><a id="link-instagram" target="_blank" rel="noopener"></a></span></div>
+        </div>
     </div>
 </div>
 
@@ -80,10 +89,11 @@
 
 <footer class="rodape-site">
     <div class="marca-nome" data-studio>Ysa de Paula</div>
-    <p>Lash Designer · © <span id="ano"></span></p>
+    <p><span data-especialidade>Lash Designer</span> · © <span id="ano"></span></p>
     <a href="/admin/">Área da profissional</a>
 </footer>
 
+<script src="/js/marca.js"></script>
 <script src="/js/site.js"></script>
 </body>
 </html>

@@ -1,5 +1,6 @@
 package br.com.ysadepaula.compartilhado.controller;
 
+import br.com.ysadepaula.cliente.model.Cliente;
 import br.com.ysadepaula.compartilhado.config.StudioProperties;
 import br.com.ysadepaula.compartilhado.dto.InfoStudioResponse;
 import br.com.ysadepaula.compartilhado.util.Datas;
@@ -33,7 +34,8 @@ public class PublicoController {
         String funcionamento = dias.isEmpty() ? "" : Datas.nomeDia(dias.getFirst())
                 + (dias.size() > 1 ? " a " + Datas.nomeDia(dias.getLast()) : "")
                 + ", das " + studio.abertura() + " às " + studio.fechamento();
-        return new InfoStudioResponse(studio.nome(), studio.profissional(), studio.endereco(), funcionamento);
+        return new InfoStudioResponse(studio.nome(), studio.profissional(), studio.especialidade(), studio.endereco(),
+                funcionamento, Cliente.normalizarTelefone(studio.whatsapp()), studio.instagram());
     }
 
     @GetMapping("/servicos")

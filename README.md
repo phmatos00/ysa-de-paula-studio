@@ -25,7 +25,7 @@ Sistema de gestão para Lash Designer, feito em Java 21 com Spring Boot.
 
 3. Acesse:
    - Site do studio (serviços, preços, contato e botão de agendar): http://localhost:8080
-   - Painel: http://localhost:8080/admin (usuário `admin`, senha `lash123`; troque em `application.properties` ou pela variável `LASH_ADMIN_SENHA`)
+   - Painel: http://localhost:8080/admin (usuário `admin`, senha `lash123`; troque em `application.yml` ou pela variável `LASH_ADMIN_SENHA`)
    - Chat das clientes: http://localhost:8080/chat.html
 
 Sem a chave de API, o painel funciona normalmente. Só o chat responde que está com um problema técnico.
@@ -34,8 +34,24 @@ Para usar outro provedor compatível com a API da OpenAI (Groq, OpenAI etc.), de
 
 ## Personalização
 
-Em `backend/src/main/resources/application.properties` você define o nome do studio, o endereço, os dias e horários de funcionamento, o intervalo entre horários e o endereço público do sistema (`studio.url-publica`), que vai no link de confirmação.
-Serviços, preços e produtos podem ser editados direto no painel.
+Nenhum dado do studio fica fixo no código. Cada valor tem um lugar só:
+
+| O que mudar | Onde |
+| --- | --- |
+| Serviços, preços, duração e descrição | Painel → Serviços |
+| Produtos, estoque mínimo e custo | Painel → Estoque |
+| Nome do studio, nome da profissional, especialidade ("Lash Designer") | `backend/src/main/resources/application.yml`, bloco `studio` |
+| Endereço, WhatsApp e Instagram (vazios não aparecem no site) | `application.yml` |
+| Dias e horários de funcionamento, intervalo da agenda | `application.yml` |
+| Usuário e senha do painel | `application.yml` ou variável `LASH_ADMIN_SENHA` |
+| Endereço público do sistema (vai no link de confirmação) | variável `URL_PUBLICA` |
+| Provedor e modelo da IA | variáveis `IA_URL`, `IA_MODELO`, `IA_MODELO_RESERVA` |
+| Jeito de falar e orientações da Bia | `promptSistema()` em `AtendenteIA.java` |
+| Cores e fontes | `frontend/src/css/estilo.css` (painel) e `site.css` (site) |
+
+Depois de mudar o `application.yml`, reinicie o sistema. O arquivo é lido em UTF-8, então pode usar acentos; os horários vão entre aspas (`"09:00"`). Qualquer valor do bloco `studio` também pode vir de uma variável de ambiente, por exemplo `STUDIO_WHATSAPP=11987654321`. Os serviços e produtos de exemplo da primeira execução estão em `DadosIniciais.java`.
+
+O nome, a especialidade e o monograma ("YP") das telas são preenchidos pelo `frontend/src/js/marca.js` a partir da API. Por isso, trocar o nome no `application.yml` muda todas as telas.
 
 ## Como funciona a confirmação
 

@@ -46,7 +46,7 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/index.html", "/chat.html", "/login.html", "/css/**", "/img/**",
-                                "/js/chat.js", "/js/site.js", "/js/login.js", "/favicon.svg", "/api/chat/**",
+                                "/js/chat.js", "/js/site.js", "/js/login.js", "/js/marca.js", "/favicon.svg", "/api/chat/**",
                                 "/api/publico/**", "/api/csrf", "/error").permitAll()
                         .anyRequest().hasRole("ADMIN"))
                 // o chat público não usa sessão de login, então não precisa de token CSRF

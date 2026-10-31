@@ -251,6 +251,12 @@ public class AtendenteIA {
                 dias, studio.abertura(), studio.fechamento(),
                 Datas.diaSemana(agora.toLocalDate()),
                 agora.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+        if (studio.whatsapp() != null && !studio.whatsapp().isBlank()) {
+            prompt += "- WhatsApp do studio: " + studio.whatsapp() + "\n";
+        }
+        if (studio.instagram() != null && !studio.instagram().isBlank()) {
+            prompt += "- Instagram: @" + studio.instagram() + "\n";
+        }
         if (telefoneConhecido != null) {
             prompt += "\nA cliente abriu o chat pelo link de lembrete enviado ao telefone " + telefoneConhecido
                     + ". Use esse telefone para buscar os agendamentos dela e ajudar a confirmar a presença.\n";

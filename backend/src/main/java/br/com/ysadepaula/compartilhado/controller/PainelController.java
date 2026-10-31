@@ -28,7 +28,8 @@ public class PainelController {
     /** Configurações do studio, sem os dados de login. */
     @GetMapping("/studio")
     public StudioProperties studio() {
-        return new StudioProperties(studio.nome(), studio.profissional(), studio.endereco(), studio.urlPublica(),
+        return new StudioProperties(studio.nome(), studio.profissional(), studio.especialidade(), studio.endereco(),
+                studio.whatsapp(), studio.instagram(), studio.urlPublica(),
                 studio.abertura(), studio.fechamento(), studio.diasFuncionamento(), studio.intervaloMinutos(),
                 null, null, studio.modeloIa(), studio.modeloIaReserva(), studio.iaUrl());
     }

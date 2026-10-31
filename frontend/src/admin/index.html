@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Painel · Ysa de Paula</title>
+    <meta name="pagina" content="Painel">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,8 +15,8 @@
 <div class="layout">
     <nav class="menu">
         <div class="marca">
-            <span class="monograma">YP</span>
-            <div class="marca-textos"><div class="marca-nome" id="nome-studio">Ysa de Paula</div><div class="marca-sub">Lash Designer</div></div>
+            <span class="monograma" data-monograma>YP</span>
+            <div class="marca-textos"><div class="marca-nome" id="nome-studio" data-studio>Ysa de Paula</div><div class="marca-sub" data-especialidade>Lash Designer</div></div>
         </div>
         <a href="#inicio" data-secao="inicio" title="Início">
             <svg class="icone" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Início</span></a>
@@ -38,6 +39,7 @@
     </nav>
     <main id="conteudo"></main>
 </div>
+<script src="/js/marca.js"></script>
 <script src="/js/admin.js"></script>
 </body>
 </html>

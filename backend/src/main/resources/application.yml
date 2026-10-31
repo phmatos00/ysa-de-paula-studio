@@ -1,0 +1,57 @@
+# Configuração do sistema. Este arquivo é lido em UTF-8: pode usar acentos à vontade.
+# Atenção ao YAML: a indentação (2 espaços) faz parte da sintaxe, e horários vão entre aspas.
+
+# ---------- Dados do studio (personalize aqui) ----------
+studio:
+  nome: Ysa de Paula
+  profissional: Ysa
+  # aparece embaixo do nome, no título das páginas e no rodapé
+  especialidade: Lash Designer
+  endereco: Rua Exemplo, 123 - Centro
+  # WhatsApp do studio, com DDD (ex.: 11987654321). Vazio = não aparece no site
+  whatsapp: ""
+  # Instagram sem o @ (ex.: ysadepaula.lash). Vazio = não aparece no site
+  instagram: ""
+  # endereço pelo qual as clientes acessam o chat (vai no link de confirmação por WhatsApp)
+  url-publica: ${URL_PUBLICA:http://localhost:8080}
+  abertura: "09:00"
+  fechamento: "19:00"
+  dias-funcionamento: TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY
+  # de quantos em quantos minutos a agenda oferece horários
+  intervalo-minutos: 30
+
+  # Login do painel administrativo (troque a senha!)
+  admin-usuario: admin
+  admin-senha: ${LASH_ADMIN_SENHA:lash123}
+
+  # IA da atendente: qualquer API compatível com a da OpenAI. A chave vai na variável IA_API_KEY.
+  # Padrão: Google Gemini, que tem plano gratuito (chave em https://aistudio.google.com/apikey)
+  ia-url: ${IA_URL:https://generativelanguage.googleapis.com/v1beta/openai}
+  modelo-ia: ${IA_MODELO:gemini-3.5-flash}
+  # usado quando o modelo principal está sobrecarregado (comum no plano gratuito)
+  modelo-ia-reserva: ${IA_MODELO_RESERVA:gemini-flash-lite-latest}
+
+# ---------- Banco de dados (arquivo local na pasta ./dados) ----------
+spring:
+  datasource:
+    url: jdbc:h2:file:./dados/ysadepaula;AUTO_SERVER=TRUE
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+  jackson:
+    time-zone: America/Sao_Paulo
+
+server:
+  port: ${PORT:8080}
+  # atrás do proxy HTTPS da hospedagem, gera links e redirecionamentos com https
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      # sessão do painel: expira depois de 4 horas sem uso; cookie inacessível ao JavaScript
+      timeout: 4h
+      cookie:
+        http-only: true
+        same-site: lax

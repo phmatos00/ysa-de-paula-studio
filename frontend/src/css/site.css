@@ -64,6 +64,8 @@
 .faixa-info { background: var(--superficie); border-top: 1px solid var(--borda); border-bottom: 1px solid var(--borda); }
 .faixa-info .secao { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 40px; padding-top: 64px; padding-bottom: 64px; }
 .info-item { display: flex; gap: 16px; }
+.info-item[hidden] { display: none; }
+.info-item a { color: inherit; }
 .info-item .icone { width: 44px; height: 44px; padding: 11px; border-radius: 50%; background: var(--acento-claro); color: var(--acento-escuro); }
 .info-item strong { display: block; font-family: var(--serif); font-size: 20px; margin-bottom: 2px; }
 .info-item span { color: var(--suave); }

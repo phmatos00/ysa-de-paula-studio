@@ -19,10 +19,22 @@ for (let i = 1; i < 28; i++) {
     cilios.insertAdjacentHTML('beforeend', `<path d="M${x} ${y} Q ${x + (x2 - x) * 0.3 + 6} ${y + (y2 - y) * 0.6} ${x2 + 8} ${y2}"/>`);
 }
 
+// nome, especialidade e monograma ficam por conta do marca.js
 fetch('/api/publico/studio').then((r) => r.json()).then((s) => {
-    document.querySelectorAll('[data-studio]').forEach((el) => el.textContent = s.nome);
     document.getElementById('endereco').textContent = s.endereco;
     document.getElementById('funcionamento').textContent = s.funcionamento.charAt(0).toUpperCase() + s.funcionamento.slice(1);
+    if (s.whatsapp) {
+        const link = document.getElementById('link-whatsapp');
+        link.href = `https://wa.me/55${s.whatsapp}`;
+        link.textContent = s.whatsapp.replace(/^(\d{2})(\d{4,5})(\d{4})$/, '($1) $2-$3');
+        document.getElementById('contato-whatsapp').hidden = false;
+    }
+    if (s.instagram) {
+        const link = document.getElementById('link-instagram');
+        link.href = `https://instagram.com/${s.instagram}`;
+        link.textContent = '@' + s.instagram;
+        document.getElementById('contato-instagram').hidden = false;
+    }
 });
 
 fetch('/api/publico/servicos').then((r) => r.json()).then((lista) => {
