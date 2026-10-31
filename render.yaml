@@ -5,7 +5,7 @@ services:
     name: ysa-de-paula-studio
     runtime: docker
     plan: free
-    region: virginia
+    region: oregon
     branch: main
     healthCheckPath: /
     autoDeploy: true

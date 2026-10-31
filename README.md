@@ -134,7 +134,7 @@ O sistema roda no **Render** e guarda os dados no **Supabase** (PostgreSQL), os 
 
 ### 1. Banco no Supabase
 
-1. Crie uma conta em https://supabase.com e um projeto novo (plano Free). Na região, escolha **East US (North Virginia)**, a mesma do Render; assim o sistema fica mais rápido. Anote a senha do banco.
+1. Crie uma conta em https://supabase.com e um projeto novo (plano Free). Na região, escolha **West US (Oregon)**, a mesma do `render.yaml`; assim o sistema fica mais rápido. Em **Security**, desmarque **Enable Data API**: o sistema acessa o banco direto, e a API deixaria as tabelas expostas. Anote a senha do banco.
 2. No projeto, clique em **Connect** e escolha **Session pooler**. Anote o **host** (algo como `aws-0-us-east-1.pooler.supabase.com`) e o **user** (algo como `postgres.abcdefghijk`).
 
 Use o *Session pooler*, e não a conexão direta: no plano gratuito, a conexão direta só funciona por IPv6. As tabelas são criadas sozinhas na primeira vez que o sistema sobe.
