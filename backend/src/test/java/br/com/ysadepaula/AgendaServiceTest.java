@@ -149,6 +149,8 @@ class AgendaServiceTest {
         List<String> nomes = servicos.findByAtivoTrueOrderByNome().stream().map(x -> x.nome).toList();
         assertEquals(12, nomes.size());
         assertTrue(nomes.contains("Efeito Sirena"));
+        assertTrue(nomes.contains("Cílios Marrom"));
+        assertFalse(nomes.contains("Efeito Molhado"));
         Servico lifting = servicos.findByAtivoTrueOrderByNome().stream().filter(x -> x.nome.equals("Lash Lifting")).findFirst().orElseThrow();
         assertEquals(0, new BigDecimal("100").compareTo(lifting.preco));
         assertFalse(lifting.temManutencao());

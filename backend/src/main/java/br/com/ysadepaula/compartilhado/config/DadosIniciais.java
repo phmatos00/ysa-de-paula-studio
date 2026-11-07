@@ -51,6 +51,15 @@ public class DadosIniciais implements CommandLineRunner {
                 s.ativo = true;
             });
         }
+        // nov/2026: o Cílios Marrom entra no lugar do Efeito Molhado (desativado, não apagado, por causa do histórico)
+        if (servicos.existsByNomeAndAtivoTrue("Efeito Molhado")) {
+            servicos.findByAtivoTrueOrderByNome().stream().filter(s -> s.nome.equals("Efeito Molhado"))
+                    .forEach(s -> s.ativo = false);
+            if (!servicos.existsByNomeAndAtivoTrue("Cílios Marrom")) {
+                servicos.save(new Servico("Cílios Marrom", "Fios na cor marrom para um olhar marcante e mais suave "
+                        + "que o preto, ótimo para quem tem cílios claros.", 120, "180.00", 90, "80.00"));
+            }
+        }
         if (produtos.count() == 0) {
             produtos.saveAll(List.of(
                     new Produto("Fios 0.07 C 10mm", "Fios", "cx", "4", "2", "35.00"),
@@ -69,7 +78,7 @@ public class DadosIniciais implements CommandLineRunner {
         return List.of(
                 new Servico("Efeito Rímel", "Fios finos que imitam cílios com rímel: olhar definido e natural.", 120, "130.00", 90, "80.00"),
                 new Servico("Efeito Rímel Extreme", "Versão mais intensa do efeito rímel, com fios mais marcados.", 120, "135.00", 90, "80.00"),
-                new Servico("Efeito Molhado", "Fios agrupados em pontinhas, como cílios recém-molhados.", 120, "140.00", 90, "80.00"),
+                new Servico("Cílios Marrom", "Fios na cor marrom para um olhar marcante e mais suave que o preto, ótimo para quem tem cílios claros.", 120, "180.00", 90, "80.00"),
                 new Servico("Efeito Glow", "Efeito iluminado e leve, que abre o olhar.", 120, "145.00", 90, "80.00"),
                 new Servico("Efeito Sirena", "Mais comprimento no canto externo, para um olhar alongado de sereia.", 120, "140.00", 90, "80.00"),
                 new Servico("Volume Brasileiro", "Fios em formato Y que dão mais volume mantendo leveza.", 120, "140.00", 90, "80.00"),
