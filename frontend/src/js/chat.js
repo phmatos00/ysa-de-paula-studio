@@ -4,7 +4,10 @@ const caixa = document.getElementById('mensagens');
 const form = document.getElementById('form');
 const entrada = document.getElementById('texto');
 const sugestoes = document.getElementById('sugestoes');
-const telefone = new URLSearchParams(location.search).get('tel');
+const parametros = new URLSearchParams(location.search);
+const telefone = parametros.get('tel');
+// vindo do card de uma técnica no site (/chat.html?servico=Volume%20Russo)
+const servicoEscolhido = (parametros.get('servico') || '').trim().slice(0, 60);
 let conversaId = null;
 let ocupado = false;
 
@@ -81,6 +84,11 @@ fetch('/api/chat/inicio' + (telefone ? '?tel=' + encodeURIComponent(telefone) : 
         document.getElementById('studio').textContent = d.studio;
         document.title = 'Agendamento · ' + d.studio;
         adicionar(d.saudacao, 'ia');
+        if (servicoEscolhido && !telefone) {
+            // a cliente já escolheu a técnica no site: a conversa começa direto por ela
+            enviar(`Quero agendar ${servicoEscolhido}`);
+            return;
+        }
         mostrarOpcoes(telefone
             ? ['Sim, confirmo minha presença!', 'Preciso remarcar']
             : ['Quero agendar um horário', 'Quais técnicas vocês fazem?', 'Ver meus agendamentos']);

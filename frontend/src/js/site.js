@@ -45,7 +45,7 @@ const slug = (nome) => nome.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase
 fetch('/api/publico/servicos').then((r) => r.json()).then((lista) => {
     const grade = document.getElementById('lista-servicos');
     grade.innerHTML = lista.map((s) => `
-        <article class="servico">
+        <a class="servico" href="/chat.html?servico=${encodeURIComponent(s.nome)}" title="Agendar ${esc(s.nome)} com a Sofi">
             <img class="foto-tecnica" src="/img/tecnicas/${slug(s.nome)}.jpg" alt="Exemplo de ${esc(s.nome)}" loading="lazy">
             <h3>${esc(s.nome)}</h3>
             <p>${esc(s.descricao)}</p>
@@ -54,7 +54,8 @@ fetch('/api/publico/servicos').then((r) => r.json()).then((lista) => {
                 ${s.precoManutencao != null ? `<span class="preco manutencao"><small>Manutenção</small>${moeda(s.precoManutencao)}</span>` : ''}
                 <span class="duracao"><svg class="icone" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>${duracao(s.duracaoMinutos)}</span>
             </div>
-        </article>`).join('');
+            <span class="clique-agendar">Clique para agendar →</span>
+        </a>`).join('');
     // técnica sem foto (ex.: cadastrada depois no painel): troca o ícone quebrado por um quadro "foto em breve"
     grade.querySelectorAll('.foto-tecnica').forEach((img) => img.addEventListener('error', () => {
         const vazio = document.createElement('div');

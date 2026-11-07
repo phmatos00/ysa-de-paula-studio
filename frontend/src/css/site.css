@@ -60,6 +60,13 @@
     aspect-ratio: 4 / 3; object-fit: cover; object-position: center 45%;
     border-radius: var(--raio) var(--raio) 0 0; background: var(--acento-claro);
 }
+a.servico { color: inherit; text-decoration: none; cursor: pointer; }
+.servico .clique-agendar {
+    display: block; margin-top: 16px; padding: 10px; border-radius: 999px; text-align: center;
+    background: var(--acento-claro); color: var(--acento-escuro); font-size: 13px; font-weight: 700;
+    transition: background .2s, color .2s;
+}
+a.servico:hover .clique-agendar, a.servico:focus-visible .clique-agendar { background: var(--acento); color: #fff; }
 .servico .sem-foto {
     display: flex; align-items: center; justify-content: center;
     font-family: var(--serif); font-style: italic; font-size: 20px; color: var(--acento-escuro);
