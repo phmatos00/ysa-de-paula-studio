@@ -10,12 +10,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -38,7 +43,12 @@ public class DistanciaService {
     public record Coordenada(double latitude, double longitude) {
     }
 
-    public record Trajeto(String origem, double km, Long minutos) {
+    /** Caminho de um ponto de partida até a cliente; {@code dias} são os dias em que a profissional sai dali. */
+    public record Trajeto(String origem, Set<DayOfWeek> dias, double km, Long minutos) {
+
+        public boolean saidaNoDia(DayOfWeek dia) {
+            return dias == null || dias.isEmpty() || dias.contains(dia);
+        }
 
         /** Ex.: "Studio: 5,2 km (~12 min)" ou "Studio: ~4,1 km em linha reta". */
         public String descricao() {
@@ -48,6 +58,28 @@ public class DistanciaService {
                     : origem + ": " + km + " km (~" + minutos + " min de carro)";
         }
     }
+
+    /** Resultado do cálculo para um endereço: o caminho a partir de cada ponto de partida. */
+    public record Deslocamento(List<Trajeto> trajetos) {
+
+        /** De onde a profissional sai no dia da semana; se nenhum ponto for desse dia, o mais perto. */
+        public Trajeto saidaNo(DayOfWeek dia) {
+            return trajetos.stream().filter(t -> t.saidaNoDia(dia)).findFirst()
+                    .orElseGet(() -> trajetos.stream().min(Comparator.comparingDouble(Trajeto::km)).orElseThrow());
+        }
+
+        public String resumo() {
+            return trajetos.stream().map(Trajeto::descricao).collect(Collectors.joining(" · "));
+        }
+    }
+
+    /** Guarda os últimos cálculos: a Sofi informa a taxa e, logo depois, o agendamento usa o mesmo resultado. */
+    private final Map<String, Deslocamento> cache = Collections.synchronizedMap(new LinkedHashMap<>(16, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Deslocamento> maisAntigo) {
+            return size() > 200;
+        }
+    });
 
     private final StudioProperties studio;
     private final RestClient http;
@@ -63,11 +95,19 @@ public class DistanciaService {
                 .build();
     }
 
-    /** Distâncias de cada ponto de partida até o endereço, em texto, ou null se não deu para localizar. */
-    public String resumo(String cep, String endereco) {
-        return localizar(cep, endereco)
-                .map(destino -> trajetos(destino).stream().map(Trajeto::descricao).collect(Collectors.joining(" · ")))
-                .orElse(null);
+    /** Distâncias até o endereço da cliente; vazio se não deu para achar o endereço no mapa. */
+    public Optional<Deslocamento> calcular(String cep, String endereco) {
+        String chave = (cep == null ? "" : cep.replaceAll("\\D", "")) + "|"
+                + (endereco == null ? "" : endereco.trim().toLowerCase(Locale.ROOT));
+        Deslocamento guardado = cache.get(chave);
+        if (guardado != null) return Optional.of(guardado);
+
+        Optional<Deslocamento> calculado = localizar(cep, endereco)
+                .map(this::trajetos)
+                .filter(t -> !t.isEmpty())
+                .map(Deslocamento::new);
+        calculado.ifPresent(d -> cache.put(chave, d));
+        return calculado;
     }
 
     public List<Trajeto> trajetos(Coordenada destino) {
@@ -75,8 +115,8 @@ public class DistanciaService {
         return pontos.stream().map(p -> {
             Coordenada origem = new Coordenada(p.latitude(), p.longitude());
             return rota(origem, destino)
-                    .map(r -> new Trajeto(p.nome(), r.km(), r.minutos()))
-                    .orElseGet(() -> new Trajeto(p.nome(), linhaReta(origem, destino), null));
+                    .map(r -> new Trajeto(p.nome(), p.dias(), r.km(), r.minutos()))
+                    .orElseGet(() -> new Trajeto(p.nome(), p.dias(), linhaReta(origem, destino), null));
         }).toList();
     }
 

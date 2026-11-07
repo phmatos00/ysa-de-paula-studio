@@ -5,7 +5,7 @@ Sistema de gestão para Lash Designer, feito em Java 21 com Spring Boot.
 - **Agenda**: horários livres calculados a partir do funcionamento e da duração de cada serviço, sem conflitos. Status: a confirmar, confirmado, realizado, cancelado ou faltou.
 - **Financeiro**: entradas e saídas por categoria e forma de pagamento, com resumo mensal. Quando um atendimento é concluído, o valor é lançado no caixa sozinho.
 - **Estoque**: produtos com estoque mínimo e alerta de reposição. Cada entrada e saída fica no histórico, e uma compra pode virar uma saída no financeiro.
-- **Atendente virtual (Bia)**: chat público em que a cliente conversa com uma IA (Google Gemini, no plano gratuito, ou qualquer API compatível com a da OpenAI). A IA tira dúvidas, consulta horários, agenda, confirma, remarca e cancela, sempre usando os dados reais do sistema.
+- **Atendente virtual (Sofi)**: chat público em que a cliente conversa com uma IA (Google Gemini, no plano gratuito, ou qualquer API compatível com a da OpenAI). A IA tira dúvidas, consulta horários, agenda, confirma, remarca e cancela, sempre usando os dados reais do sistema.
 
 ## Como rodar
 
@@ -30,7 +30,7 @@ Sistema de gestão para Lash Designer, feito em Java 21 com Spring Boot.
 
 Sem a chave de API, o painel funciona normalmente. Só o chat responde que está com um problema técnico.
 
-Para usar outro provedor compatível com a API da OpenAI (Groq, OpenAI etc.), defina também `IA_URL` (endereço da API) e `IA_MODELO` (nome do modelo). Se o modelo principal estiver sobrecarregado, a Bia tenta de novo e depois usa o modelo reserva (`IA_MODELO_RESERVA`).
+Para usar outro provedor compatível com a API da OpenAI (Groq, OpenAI etc.), defina também `IA_URL` (endereço da API) e `IA_MODELO` (nome do modelo). Se o modelo principal estiver sobrecarregado, a Sofi tenta de novo e depois usa o modelo reserva (`IA_MODELO_RESERVA`).
 
 ## Personalização
 
@@ -46,7 +46,7 @@ Nenhum dado do studio fica fixo no código. Cada valor tem um lugar só:
 | Usuário e senha do painel | `application.yml` ou variável `LASH_ADMIN_SENHA` |
 | Endereço público do sistema (vai no link de confirmação) | variável `URL_PUBLICA` |
 | Provedor e modelo da IA | variáveis `IA_URL`, `IA_MODELO`, `IA_MODELO_RESERVA` |
-| Jeito de falar e orientações da Bia | `promptSistema()` em `AtendenteIA.java` |
+| Jeito de falar e orientações da Sofi | `promptSistema()` em `AtendenteIA.java` |
 | Cores e fontes | `frontend/src/css/estilo.css` (painel) e `site.css` (site) |
 
 Depois de mudar o `application.yml`, reinicie o sistema. O arquivo é lido em UTF-8, então pode usar acentos; os horários vão entre aspas (`"09:00"`). Qualquer valor do bloco `studio` também pode vir de uma variável de ambiente, por exemplo `STUDIO_WHATSAPP=11987654321`. Os serviços e produtos de exemplo da primeira execução estão em `DadosIniciais.java`.
@@ -55,7 +55,7 @@ O nome, a especialidade e o monograma ("YP") das telas são preenchidos pelo `fr
 
 ## Como funciona a confirmação
 
-Em **Agenda → Lembretes para enviar** aparecem os atendimentos até amanhã que ainda não foram confirmados. O botão **Enviar no WhatsApp** abre a conversa com a cliente já com a mensagem escrita e o link do chat (`/chat.html?tel=...`). Quando a cliente abre o link, a Bia já sabe quem ela é, encontra o agendamento e confirma, ou remarca se ela precisar.
+Em **Agenda → Lembretes para enviar** aparecem os atendimentos até amanhã que ainda não foram confirmados. O botão **Enviar no WhatsApp** abre a conversa com a cliente já com a mensagem escrita e o link do chat (`/chat.html?tel=...`). Quando a cliente abre o link, a Sofi já sabe quem ela é, encontra o agendamento e confirma, ou remarca se ela precisar.
 
 ## Segurança
 
@@ -63,7 +63,7 @@ Feita com o Spring Security (`compartilhado/config/SecurityConfig.java` e o paco
 
 - **Login no painel**: o site, o chat e a API pública são abertos; o painel e a API administrativa exigem login com o papel `ADMIN`. A senha fica guardada com BCrypt. Sem login, as páginas levam para a tela de entrada e a API responde `401`.
 - **Senha errada**: depois de 5 erros seguidos do mesmo IP, o login fica bloqueado para ele por 15 minutos (até com a senha certa). Os outros IPs continuam entrando.
-- **Chat**: cada mensagem custa uma chamada à IA, então o mesmo IP pode mandar até 20 mensagens a cada 5 minutos. Depois disso, a Bia pede para aguardar.
+- **Chat**: cada mensagem custa uma chamada à IA, então o mesmo IP pode mandar até 20 mensagens a cada 5 minutos. Depois disso, a Sofi pede para aguardar.
 - **CSRF**: tudo o que altera dados no painel exige o token CSRF da sessão.
 - **Cabeçalhos de proteção**: política de conteúdo (CSP) que só aceita scripts do próprio sistema, proibição de abrir o sistema dentro de outro site (`X-Frame-Options: DENY`) e outros.
 - **Sessão**: expira após 4 horas sem uso; o cookie não pode ser lido por JavaScript. No perfil `producao`, o cookie só trafega por HTTPS e a senha do painel é obrigatória (`LASH_ADMIN_SENHA`).
@@ -95,7 +95,7 @@ backend/src/main/java/br/com/ysadepaula
 │   ├── model/       Agendamento, StatusAgendamento, OrigemAgendamento
 │   ├── repository/  AgendamentoRepository
 │   └── service/     AgendaService
-├── atendimento/     atendente virtual (Bia) com IA
+├── atendimento/     atendente virtual (Sofi) com IA
 │   ├── controller/  ChatController
 │   ├── dto/         MensagemChatRequest, RespostaChatResponse
 │   ├── ferramenta/  FerramentasAtendimento (ações que a IA pode executar)
@@ -150,7 +150,7 @@ Use o *Session pooler*, e não a conexão direta: no plano gratuito, a conexão 
    | `DB_USUARIO` | user do Session pooler |
    | `DB_SENHA` | senha do banco do Supabase |
    | `LASH_ADMIN_SENHA` | senha forte para o painel (sem ela o sistema não sobe) |
-   | `IA_API_KEY` | chave do Gemini (para a Bia responder) |
+   | `IA_API_KEY` | chave do Gemini (para a Sofi responder) |
    | `URL_PUBLICA` | deixe em branco por enquanto |
 
 3. Espere a primeira publicação terminar (alguns minutos). O endereço aparece no topo do serviço, algo como `https://ysa-de-paula-studio.onrender.com`.
@@ -163,7 +163,7 @@ No plano gratuito, o Render "dorme" depois de 15 minutos sem acesso, e o próxim
 
 Bom saber:
 - O plano gratuito do Supabase tem 500 MB, que sobram para o studio, e pausa projetos que ficam uma semana sem nenhum acesso. Com o sistema no ar, isso não acontece.
-- Os dados ficam no Supabase, então nada se perde quando o Render dorme ou republica. Só o login do painel, as conversas da Bia e os bloqueios de senha errada, que ficam na memória, recomeçam.
+- Os dados ficam no Supabase, então nada se perde quando o Render dorme ou republica. Só o login do painel, as conversas da Sofi e os bloqueios de senha errada, que ficam na memória, recomeçam.
 - Faça backups pelo painel do Supabase (**Database → Backups**) ou com `pg_dump`.
 - O mesmo `Dockerfile` serve para o Railway (pago) ou qualquer servidor com Docker.
 
@@ -180,5 +180,5 @@ docker run --rm --network studio-net -m 512m -p 8080:10000 -e PORT=10000 -e DB_H
 
 ## Próximos passos sugeridos
 
-- Integrar com a API oficial do WhatsApp Business (Meta Cloud API), para a Bia responder direto no WhatsApp e mandar os lembretes sozinha.
+- Integrar com a API oficial do WhatsApp Business (Meta Cloud API), para a Sofi responder direto no WhatsApp e mandar os lembretes sozinha.
 - Baixar o estoque automaticamente pelos materiais usados em cada serviço.

@@ -104,6 +104,8 @@ public class AgendaService {
         a.inicio = inicio;
         a.fim = inicio.plusMinutes(servico.duracao(manutencao));
         a.valor = servico.preco(manutencao);
+        // o sinal é sobre o preço da técnica, sem a taxa de deslocamento
+        if (!manutencao) a.valorSinal = studio.sinal(servico.preco);
         a.observacoes = req.observacoes();
         a.origem = origem;
         if (req.ehDomicilio()) {
@@ -112,11 +114,28 @@ public class AgendaService {
             }
             String cep = req.cep() == null ? "" : req.cep().replaceAll("\\D", "");
             a.domicilio = true;
-            a.enderecoAtendimento = req.endereco().trim() + (cep.length() == 8 ? " - CEP " + cep.substring(0, 5) + "-" + cep.substring(5) : "");
-            a.distancias = distancia.resumo(cep, req.endereco());
-            a.cliente.endereco = a.enderecoAtendimento;
+            a.enderecoAtendimento = req.endereco().trim();
+            a.cepAtendimento = cep.length() == 8 ? cep.substring(0, 5) + "-" + cep.substring(5) : null;
+            calcularDeslocamento(a);
+            a.cliente.endereco = a.enderecoAtendimento + (a.cepAtendimento == null ? "" : " - CEP " + a.cepAtendimento);
         }
         return agendamentos.save(a);
+    }
+
+    /**
+     * Calcula a distância a partir do ponto de saída do dia marcado e soma a taxa ao preço da técnica.
+     * Se o endereço não for achado no mapa, fica sem taxa e a profissional combina com a cliente.
+     */
+    private void calcularDeslocamento(Agendamento a) {
+        a.valor = a.servico.preco(a.manutencao);
+        a.distancias = null;
+        a.taxaDeslocamento = null;
+        distancia.calcular(a.cepAtendimento, a.enderecoAtendimento).ifPresent(d -> {
+            DistanciaService.Trajeto saida = d.saidaNo(a.inicio.getDayOfWeek());
+            a.distancias = d.resumo() + " · taxa calculada saindo de " + saida.origem();
+            a.taxaDeslocamento = studio.taxaDeslocamento(saida.km());
+            a.valor = a.valor.add(a.taxaDeslocamento);
+        });
     }
 
     @Transactional
@@ -134,6 +153,8 @@ public class AgendaService {
         }
         a.inicio = novoInicio;
         a.fim = novoInicio.plusMinutes(a.servico.duracao(a.manutencao));
+        // mudar de dia de semana para fim de semana (ou o contrário) muda o ponto de saída e a taxa
+        if (a.domicilio) calcularDeslocamento(a);
         a.status = StatusAgendamento.PENDENTE;
         return agendamentos.save(a);
     }
@@ -143,6 +164,15 @@ public class AgendaService {
         Agendamento a = buscar(id);
         exigirAtivo(a);
         a.status = StatusAgendamento.CONFIRMADO;
+        return agendamentos.save(a);
+    }
+
+    @Transactional
+    public Agendamento registrarSinal(Long id) {
+        Agendamento a = buscar(id);
+        exigirAtivo(a);
+        if (a.valorSinal == null) throw new NegocioException("Este agendamento não tem sinal.");
+        a.sinalPago = true;
         return agendamentos.save(a);
     }
 

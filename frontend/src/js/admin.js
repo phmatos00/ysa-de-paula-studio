@@ -168,7 +168,7 @@ async function telaAgenda() {
             <button id="novo-agendamento">+ Novo agendamento</button>`)}
         ${confirmacoes.length ? `<div class="cartao faixa-dourada">
             <div class="cartao-cabecalho"><h2>Lembretes para enviar</h2><span class="texto-suave">${confirmacoes.length} aguardando confirmação</span></div>
-            <p class="texto-suave">O botão abre o WhatsApp com a mensagem pronta e o link do chat, onde a Bia confirma com a cliente.</p>
+            <p class="texto-suave">O botão abre o WhatsApp com a mensagem pronta e o link do chat, onde a Sofi confirma com a cliente.</p>
             ${confirmacoes.map((c) => `<div class="lembrete">
                 <div class="quando">${esc(dataBR(c.agendamento.inicio))} · ${hora(c.agendamento.inicio)}</div>
                 <div class="quem">${esc(c.agendamento.cliente.nome)}<small>${esc(c.agendamento.servico.nome)}${c.agendamento.manutencao ? ' (manutenção)' : ''}${c.agendamento.domicilio ? ' · 🏠 domicílio' : ''}</small></div>
@@ -197,11 +197,14 @@ function renderizarAgendamentos(el, lista, recarregar) {
             <div class="info">
                 <div class="nome">${esc(a.cliente.nome)} <span class="selo ${a.status}">${STATUS[a.status]}</span> ${a.origem === 'IA' ? '<span class="selo IA">via IA</span>' : ''}</div>
                 <div class="detalhe">${esc(a.servico.nome)}${a.manutencao ? ' (manutenção)' : ''} · ${moeda(a.valor)} · <a href="https://wa.me/55${esc(a.cliente.telefone)}" target="_blank">${esc(telefoneBR(a.cliente.telefone))}</a></div>
-                ${a.domicilio ? `<div class="detalhe">🏠 Domicílio: ${esc(a.enderecoAtendimento)}<br>${a.distancias ? esc(a.distancias) : 'Distância não calculada (endereço não encontrado no mapa).'}</div>` : ''}
+                ${a.domicilio ? `<div class="detalhe">🏠 Domicílio: ${esc(a.enderecoAtendimento)}${a.cepAtendimento ? ` - CEP ${esc(a.cepAtendimento)}` : ''}<br>${a.distancias ? esc(a.distancias) : 'Distância não calculada (endereço não encontrado no mapa).'}
+                    ${a.taxaDeslocamento != null ? `<br>Deslocamento: ${Number(a.taxaDeslocamento) ? moeda(a.taxaDeslocamento) : 'sem taxa'} (já somado no valor)` : ''}</div>` : ''}
+                ${a.valorSinal != null ? `<div class="detalhe">Sinal: ${moeda(a.valorSinal)} · ${a.sinalPago ? '<strong>pago ✓</strong>' : '<strong>aguardando pagamento</strong>'}</div>` : ''}
                 ${a.observacoes ? `<div class="detalhe">${esc(a.observacoes)}</div>` : ''}
             </div>
             <div class="botoes">
                 ${a.status === 'PENDENTE' ? `<button class="pequeno secundario" data-acao="confirmar" data-id="${a.id}">Confirmar</button>` : ''}
+                ${ativo && a.valorSinal != null && !a.sinalPago ? `<button class="pequeno secundario" data-acao="sinal" data-id="${a.id}">Sinal recebido</button>` : ''}
                 ${ativo ? `<button class="pequeno verde" data-acao="concluir" data-id="${a.id}">Concluir</button>
                     <button class="pequeno secundario" data-acao="remarcar" data-id="${a.id}">Remarcar</button>
                     <button class="pequeno perigo" data-acao="falta" data-id="${a.id}">Faltou</button>

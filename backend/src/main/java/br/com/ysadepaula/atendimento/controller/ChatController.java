@@ -48,6 +48,6 @@ public class ChatController {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(new RespostaChatResponse(id,
                     "Você mandou muitas mensagens em pouco tempo. Aguarde alguns minutos e tente de novo, por favor."));
         String texto = req.mensagem().length() > 2000 ? req.mensagem().substring(0, 2000) : req.mensagem();
-        return ResponseEntity.ok(new RespostaChatResponse(id, atendente.responder(id, req.telefone(), texto)));
+        return ResponseEntity.ok(RespostaChatResponse.daIa(id, atendente.responder(id, req.telefone(), texto)));
     }
 }

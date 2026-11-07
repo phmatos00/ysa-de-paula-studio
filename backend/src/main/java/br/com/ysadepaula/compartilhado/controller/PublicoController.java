@@ -27,6 +27,7 @@ public class PublicoController {
     @GetMapping("/studio")
     public InfoStudioResponse studio() {
         return new InfoStudioResponse(studio.nome(), studio.profissional(), studio.especialidade(), studio.endereco(),
+                studio.descricaoDeslocamento(), studio.sinalPercentual() > 0 ? studio.sinalPercentual() : null,
                 studio.descricaoFuncionamento(), Cliente.normalizarTelefone(studio.whatsapp()), studio.instagram());
     }
 

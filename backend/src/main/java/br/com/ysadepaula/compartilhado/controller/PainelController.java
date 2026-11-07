@@ -30,7 +30,7 @@ public class PainelController {
     public StudioProperties studio() {
         return new StudioProperties(studio.nome(), studio.profissional(), studio.especialidade(), studio.endereco(),
                 studio.whatsapp(), studio.instagram(), studio.urlPublica(),
-                studio.horarios(), studio.intervaloMinutos(), studio.pontosPartida(),
+                studio.horarios(), studio.intervaloMinutos(), studio.pontosPartida(), studio.taxasDeslocamento(), studio.sinalPercentual(), studio.chavePix(),
                 null, null, studio.modeloIa(), studio.modeloIaReserva(), studio.iaUrl());
     }
 }

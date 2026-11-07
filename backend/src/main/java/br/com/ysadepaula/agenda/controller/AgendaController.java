@@ -61,6 +61,11 @@ public class AgendaController {
         return agenda.confirmar(id);
     }
 
+    @PostMapping("/{id}/sinal")
+    public Agendamento sinal(@PathVariable Long id) {
+        return agenda.registrarSinal(id);
+    }
+
     @PostMapping("/{id}/cancelar")
     public Agendamento cancelar(@PathVariable Long id) {
         return agenda.cancelar(id);
@@ -97,7 +102,11 @@ public class AgendaController {
         String texto = "Oi, " + primeiroNome + "! Tudo bem? 💕 Passando para lembrar do seu horário de "
                 + (a.manutencao ? "manutenção de " : "") + a.servico.nome
                 + (a.domicilio ? " (atendimento na sua casa)" : " no studio " + studio.nome()) + ", " + a.inicio.format(DIA_SEMANA)
-                + " às " + a.inicio.toLocalTime() + ".\n\nPode confirmar sua presença por aqui: "
+                + " às " + a.inicio.toLocalTime() + "."
+                + (a.valorSinal != null && !a.sinalPago
+                        ? "\n\nLembrando que o sinal de R$ " + a.valorSinal.toPlainString().replace('.', ',')
+                        + " garante o seu horário." : "")
+                + "\n\nPode confirmar sua presença por aqui: "
                 + studio.urlPublica() + "/chat.html?tel=" + a.cliente.telefone;
         return "https://wa.me/55" + a.cliente.telefone + "?text=" + URLEncoder.encode(texto, StandardCharsets.UTF_8)
                 .replace("+", "%20");

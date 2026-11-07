@@ -23,6 +23,8 @@ for (let i = 1; i < 28; i++) {
 fetch('/api/publico/studio').then((r) => r.json()).then((s) => {
     document.getElementById('endereco').textContent = s.endereco;
     document.getElementById('funcionamento').textContent = s.funcionamento.charAt(0).toUpperCase() + s.funcionamento.slice(1);
+    document.getElementById('deslocamento').textContent = `Taxa de deslocamento: ${s.deslocamento}.`
+        + (s.sinalPercentual ? ` Na colocação, um sinal de ${s.sinalPercentual}% garante o seu horário.` : '');
     if (s.whatsapp) {
         const link = document.getElementById('link-whatsapp');
         link.href = `https://wa.me/55${s.whatsapp}`;

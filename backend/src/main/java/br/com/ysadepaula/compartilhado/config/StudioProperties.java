@@ -3,12 +3,17 @@ package br.com.ysadepaula.compartilhado.config;
 import br.com.ysadepaula.compartilhado.util.Datas;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Dados do studio e regras de funcionamento, lidos de application.yml (prefixo "studio").
@@ -29,6 +34,12 @@ public record StudioProperties(
         int intervaloMinutos,
         /** Lugares de onde a profissional sai para atender a domicílio (usados no cálculo de distância). */
         List<PontoPartida> pontosPartida,
+        /** Taxa do atendimento a domicílio por faixa de distância; abaixo da primeira faixa não há taxa. */
+        List<FaixaDeslocamento> taxasDeslocamento,
+        /** Porcentagem do preço da colocação cobrada como sinal para garantir o horário (0 = sem sinal). */
+        int sinalPercentual,
+        /** Chave Pix para o sinal; vazia = a profissional manda a chave pelo WhatsApp. */
+        String chavePix,
         String adminUsuario,
         String adminSenha,
         String modeloIa,
@@ -39,7 +50,48 @@ public record StudioProperties(
     public record Expediente(LocalTime abertura, LocalTime fechamento) {
     }
 
-    public record PontoPartida(String nome, double latitude, double longitude) {
+    /** Lugar de onde a profissional sai nos dias listados (sem dias = qualquer dia). */
+    public record PontoPartida(String nome, double latitude, double longitude, Set<DayOfWeek> dias) {
+    }
+
+    /** A partir desta distância (em km, de carro), cobra este valor de deslocamento. */
+    public record FaixaDeslocamento(double aPartirDeKm, BigDecimal valor) {
+    }
+
+    /** Valor do deslocamento para a distância informada: o da maior faixa alcançada, ou zero. */
+    public BigDecimal taxaDeslocamento(double km) {
+        if (taxasDeslocamento == null) return BigDecimal.ZERO;
+        return taxasDeslocamento.stream()
+                .filter(f -> km >= f.aPartirDeKm())
+                .max(Comparator.comparingDouble(FaixaDeslocamento::aPartirDeKm))
+                .map(FaixaDeslocamento::valor)
+                .orElse(BigDecimal.ZERO);
+    }
+
+    /** Ex.: "até 10 km sem taxa; de 10 a 30 km, R$ 15,00; acima de 30 km, R$ 30,00". */
+    public String descricaoDeslocamento() {
+        if (taxasDeslocamento == null || taxasDeslocamento.isEmpty()) return "sem taxa de deslocamento";
+        List<FaixaDeslocamento> faixas = taxasDeslocamento.stream()
+                .sorted(Comparator.comparingDouble(FaixaDeslocamento::aPartirDeKm)).toList();
+        NumberFormat reais = NumberFormat.getCurrencyInstance(Datas.PT_BR);
+        NumberFormat km = NumberFormat.getNumberInstance(Datas.PT_BR);
+        StringBuilder texto = new StringBuilder("até " + km.format(faixas.getFirst().aPartirDeKm()) + " km sem taxa");
+        for (int i = 0; i < faixas.size(); i++) {
+            FaixaDeslocamento f = faixas.get(i);
+            texto.append(i + 1 < faixas.size()
+                    ? "; de " + km.format(f.aPartirDeKm()) + " a " + km.format(faixas.get(i + 1).aPartirDeKm()) + " km, "
+                    : "; acima de " + km.format(f.aPartirDeKm()) + " km, ");
+            texto.append(reais.format(f.valor()));
+        }
+        // o formato de moeda do Java usa um espaço especial depois do "R$"
+        return texto.toString().replace(' ', ' ');
+    }
+
+    /** Sinal da colocação: a porcentagem configurada do preço, arredondada para centavos. */
+    public BigDecimal sinal(BigDecimal precoColocacao) {
+        if (precoColocacao == null || sinalPercentual <= 0) return null;
+        return precoColocacao.multiply(BigDecimal.valueOf(sinalPercentual))
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
     }
 
     /** Expediente do dia, ou null se o studio não abre nesse dia da semana. */

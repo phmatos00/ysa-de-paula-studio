@@ -157,7 +157,8 @@
 .digitando span:nth-child(3) { animation-delay: .3s; }
 @keyframes pula { 0%, 60%, 100% { opacity: .3; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
 
-.sugestoes { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 18px 12px; }
+.sugestoes { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 18px 12px; max-height: 38vh; overflow-y: auto; }
+.sugestoes:empty { display: none; }
 .sugestoes button { background: var(--superficie); color: var(--acento-escuro); border: 1px solid var(--borda-forte); font-weight: 600; font-size: 13px; padding: 8px 14px; }
 .sugestoes button:hover { background: var(--acento-claro); border-color: var(--acento); }
 

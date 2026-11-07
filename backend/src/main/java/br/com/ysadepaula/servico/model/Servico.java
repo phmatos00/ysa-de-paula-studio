@@ -36,12 +36,17 @@ public class Servico {
     public Servico() {
     }
 
-    public Servico(String nome, String descricao, int duracaoMinutos, String preco,
-                   int duracaoManutencaoMinutos, String precoManutencao) {
+    /** Técnica sem manutenção. */
+    public Servico(String nome, String descricao, int duracaoMinutos, String preco) {
         this.nome = nome;
         this.descricao = descricao;
         this.duracaoMinutos = duracaoMinutos;
         this.preco = new BigDecimal(preco);
+    }
+
+    public Servico(String nome, String descricao, int duracaoMinutos, String preco,
+                   int duracaoManutencaoMinutos, String precoManutencao) {
+        this(nome, descricao, duracaoMinutos, preco);
         this.duracaoManutencaoMinutos = duracaoManutencaoMinutos;
         this.precoManutencao = new BigDecimal(precoManutencao);
     }

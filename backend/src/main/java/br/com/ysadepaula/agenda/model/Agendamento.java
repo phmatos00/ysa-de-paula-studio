@@ -49,9 +49,24 @@ public class Agendamento {
     @Column(length = 500)
     public String enderecoAtendimento;
 
+    /** CEP no formato 00000-000, ou vazio se a cliente não informou. */
+    @Column(length = 9)
+    public String cepAtendimento;
+
     /** Distância de cada ponto de partida até a cliente, já em texto. Ex.: "Studio: 5,2 km (~12 min)". */
     @Column(length = 500)
     public String distancias;
+
+    /** Já está somada em {@link #valor}; vazia quando não deu para calcular a distância. */
+    @Column(precision = 10, scale = 2)
+    public BigDecimal taxaDeslocamento;
+
+    /** Sinal pedido para garantir o horário (só na colocação); vazio quando não há sinal. */
+    @Column(precision = 10, scale = 2)
+    public BigDecimal valorSinal;
+
+    @Column(columnDefinition = "boolean default false")
+    public boolean sinalPago;
 
     public LocalDateTime criadoEm = LocalDateTime.now();
 

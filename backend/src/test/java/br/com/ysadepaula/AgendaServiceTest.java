@@ -147,15 +147,59 @@ class AgendaServiceTest {
     @Test
     void catalogoNovoSemSobrancelha() {
         List<String> nomes = servicos.findByAtivoTrueOrderByNome().stream().map(x -> x.nome).toList();
-        assertEquals(11, nomes.size());
+        assertEquals(12, nomes.size());
         assertTrue(nomes.contains("Efeito Sirena"));
+        Servico lifting = servicos.findByAtivoTrueOrderByNome().stream().filter(x -> x.nome.equals("Lash Lifting")).findFirst().orElseThrow();
+        assertEquals(0, new BigDecimal("100").compareTo(lifting.preco));
+        assertFalse(lifting.temManutencao());
+        assertThrows(NegocioException.class, () -> agenda.horariosDisponiveis(proximoDiaUtil(), lifting.id, true));
         assertFalse(nomes.contains("Design de Sobrancelhas"));
+    }
+
+    @Test
+    void colocacaoPedeSinalDeMetadeEManutencaoNao() {
+        LocalDate dia = proximoDiaUtil();
+        Servico s = servico();
+        Agendamento colocacao = agenda.agendar(pedido("Nina", "11966665555", s.id, dia.atTime(8, 0)), OrigemAgendamento.IA);
+        assertEquals(0, s.preco.divide(new BigDecimal("2")).compareTo(colocacao.valorSinal));
+        assertFalse(colocacao.sinalPago);
+        agenda.registrarSinal(colocacao.id);
+        assertTrue(agenda.buscar(colocacao.id).sinalPago);
+
+        Agendamento manutencao = agenda.agendar(new NovoAgendamentoRequest("Nina", "11966665555", s.id,
+                dia.atTime(12, 0), null, true, false, null, null), OrigemAgendamento.IA);
+        assertNull(manutencao.valorSinal);
+    }
+
+    @Test
+    void taxaDeDeslocamentoPorFaixa() {
+        assertEquals(0, BigDecimal.ZERO.compareTo(studio.taxaDeslocamento(9.9)));
+        assertEquals(0, new BigDecimal("15").compareTo(studio.taxaDeslocamento(10)));
+        assertEquals(0, new BigDecimal("15").compareTo(studio.taxaDeslocamento(29.9)));
+        assertEquals(0, new BigDecimal("30").compareTo(studio.taxaDeslocamento(30.5)));
+        assertEquals("até 10 km sem taxa; de 10 a 30 km, R$ 15,00; acima de 30 km, R$ 30,00",
+                studio.descricaoDeslocamento());
     }
 
     @Test
     void domicilioExigeEndereco() {
         assertThrows(NegocioException.class, () -> agenda.agendar(new NovoAgendamentoRequest("Rita", "11922221111",
                 servico().id, proximoDiaUtil().atTime(10, 0), null, false, true, null, " "), OrigemAgendamento.IA));
+    }
+
+    @Test
+    void saidaDoStudioNoFimDeSemanaEDaAquarelaNaSemana() {
+        var d = new DistanciaService.Deslocamento(List.of(
+                new DistanciaService.Trajeto("Studio", java.util.Set.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY), 32.4, 39L),
+                new DistanciaService.Trajeto("Aquarela", java.util.Set.of(DayOfWeek.MONDAY, DayOfWeek.FRIDAY), 17.8, 23L)));
+        assertEquals("Studio", d.saidaNo(DayOfWeek.SATURDAY).origem());
+        assertEquals("Aquarela", d.saidaNo(DayOfWeek.MONDAY).origem());
+        assertEquals(0, new BigDecimal("30").compareTo(studio.taxaDeslocamento(d.saidaNo(DayOfWeek.SUNDAY).km())));
+        assertEquals(0, new BigDecimal("15").compareTo(studio.taxaDeslocamento(d.saidaNo(DayOfWeek.FRIDAY).km())));
+        // dia sem ponto de saída cadastrado: usa o mais perto
+        assertEquals("Aquarela", d.saidaNo(DayOfWeek.WEDNESDAY).origem());
+        // e o application.yml diz: studio no fim de semana
+        assertEquals(java.util.Set.of(DayOfWeek.SATURDAY, DayOfWeek.SUNDAY), studio.pontosPartida().getFirst().dias());
     }
 
     @Test

@@ -5,11 +5,15 @@ import br.com.ysadepaula.agenda.model.Agendamento;
 import br.com.ysadepaula.agenda.model.OrigemAgendamento;
 import br.com.ysadepaula.agenda.service.AgendaService;
 import br.com.ysadepaula.cliente.model.Cliente;
+import br.com.ysadepaula.compartilhado.config.StudioProperties;
 import br.com.ysadepaula.compartilhado.exception.NegocioException;
+import br.com.ysadepaula.compartilhado.util.Datas;
+import br.com.ysadepaula.deslocamento.service.DistanciaService;
 import br.com.ysadepaula.servico.model.Servico;
 import br.com.ysadepaula.servico.repository.ServicoRepository;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -28,10 +32,15 @@ public class FerramentasAtendimento {
 
     private final AgendaService agenda;
     private final ServicoRepository servicos;
+    private final DistanciaService distancia;
+    private final StudioProperties studio;
 
-    public FerramentasAtendimento(AgendaService agenda, ServicoRepository servicos) {
+    public FerramentasAtendimento(AgendaService agenda, ServicoRepository servicos, DistanciaService distancia,
+                                  StudioProperties studio) {
         this.agenda = agenda;
         this.servicos = servicos;
+        this.distancia = distancia;
+        this.studio = studio;
     }
 
     public List<Map<String, Object>> definicoes() {
@@ -50,6 +59,14 @@ public class FerramentasAtendimento {
                                 "servico_id", prop("integer", "ID do serviço"),
                                 "tipo", tipo),
                         List.of("data", "servico_id", "tipo")),
+                tool("calcular_deslocamento",
+                        "Calcula a distância até a casa da cliente e a taxa de deslocamento do atendimento a domicílio. "
+                                + "O ponto de saída depende do dia, então use depois que ela escolher o dia, antes de "
+                                + "recapitular e agendar.",
+                        Map.of("endereco", prop("string", "Endereço completo da cliente"),
+                                "cep", prop("string", "CEP da cliente, só números"),
+                                "data", prop("string", "Dia escolhido, no formato AAAA-MM-DD")),
+                        List.of("endereco", "cep", "data")),
                 tool("agendar",
                         "Cria o agendamento. Só use depois que a cliente concordar com técnica, tipo, local, dia e "
                                 + "horário e informar nome e telefone (e o endereço, se for em casa).",
@@ -99,6 +116,8 @@ public class FerramentasAtendimento {
                     numero(in, "servico_id"), dataHora(in), opcional(in, "observacoes"), manutencao(in),
                     Boolean.parseBoolean(String.valueOf(in.get("domicilio"))), opcional(in, "cep"),
                     opcional(in, "endereco")), OrigemAgendamento.IA));
+            case "calcular_deslocamento" -> deslocamento(texto(in, "cep"), texto(in, "endereco"),
+                    LocalDate.parse(texto(in, "data")));
             case "buscar_agendamentos" -> agenda.proximosDaCliente(texto(in, "telefone")).stream()
                     .filter(Agendamento::ocupaHorario).map(this::resumo).toList();
             case "confirmar_agendamento" -> resumo(agenda.confirmar(daCliente(in).id));
@@ -106,6 +125,21 @@ public class FerramentasAtendimento {
             case "cancelar_agendamento" -> resumo(agenda.cancelar(daCliente(in).id));
             default -> throw new NegocioException("Ferramenta desconhecida: " + nome);
         };
+    }
+
+    private Map<String, Object> deslocamento(String cep, String endereco, LocalDate dia) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        distancia.calcular(cep, endereco).ifPresentOrElse(d -> {
+            DistanciaService.Trajeto saida = d.saidaNo(dia.getDayOfWeek());
+            BigDecimal taxa = studio.taxaDeslocamento(saida.km());
+            m.put("dia", diaSemana(dia) + " " + dia);
+            m.put("distancia", String.format(Datas.PT_BR, "%.1f km", saida.km()));
+            m.put("taxa_deslocamento", taxa.signum() == 0 ? "sem taxa" : "R$ " + reais(taxa));
+            m.put("observacao", "A taxa é somada ao valor da técnica no agendamento.");
+        }, () -> m.put("erro", "Não encontrei o endereço no mapa. Peça para a cliente conferir o CEP; se continuar, "
+                + "diga que a " + studio.profissional() + " confirma a taxa de deslocamento pessoalmente."));
+        m.put("regra", studio.descricaoDeslocamento());
+        return m;
     }
 
     /** Garante que a cliente só mexe nos próprios agendamentos. */
@@ -123,13 +157,15 @@ public class FerramentasAtendimento {
         m.put("nome", s.nome);
         m.put("descricao", s.descricao);
         m.put("colocacao", "R$ " + reais(s.preco) + " (" + s.duracaoMinutos + " min)");
+        BigDecimal sinal = studio.sinal(s.preco);
+        if (sinal != null) m.put("sinal_da_colocacao", "R$ " + reais(sinal));
         m.put("manutencao", s.temManutencao()
                 ? "R$ " + reais(s.precoManutencao) + " (" + s.duracaoManutencaoMinutos + " min)"
                 : "não tem manutenção");
         return m;
     }
 
-    private static String reais(java.math.BigDecimal valor) {
+    private static String reais(BigDecimal valor) {
         return valor.toPlainString().replace('.', ',');
     }
 
@@ -139,8 +175,16 @@ public class FerramentasAtendimento {
         m.put("cliente", a.cliente.nome);
         m.put("servico", a.servico.nome);
         m.put("tipo", a.manutencao ? "manutenção" : "colocação");
-        m.put("valor", "R$ " + reais(a.valor));
+        m.put("valor_total", "R$ " + reais(a.valor));
+        if (a.taxaDeslocamento != null) m.put("taxa_deslocamento_incluida", "R$ " + reais(a.taxaDeslocamento));
+        if (a.valorSinal != null) {
+            m.put("sinal", "R$ " + reais(a.valorSinal) + (a.sinalPago ? " (já pago)" : " (falta pagar)"));
+            m.put("como_pagar_sinal", studio.chavePix() == null || studio.chavePix().isBlank()
+                    ? "Pix: a " + studio.profissional() + " envia a chave pelo WhatsApp"
+                    : "Pix para a chave " + studio.chavePix());
+        }
         m.put("local", a.domicilio ? "na casa da cliente: " + a.enderecoAtendimento : "no studio");
+        if (a.domicilio && a.distancias == null) m.put("taxa_deslocamento", "não calculada: a profissional combina com a cliente");
         m.put("data", a.inicio.toLocalDate().toString());
         m.put("dia_semana", diaSemana(a.inicio.toLocalDate()));
         m.put("horario", a.inicio.toLocalTime().toString());

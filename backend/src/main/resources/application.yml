@@ -9,7 +9,7 @@ studio:
   especialidade: Lash Designer
   endereco: Quadra 14, Rua 10, Casa 39 - Boa Vista II, Novo Gama - GO, CEP 72862-114
   # WhatsApp do studio, com DDD (ex.: 11987654321). Vazio = não aparece no site
-  whatsapp: ""
+  whatsapp: "61994315180"
   # Instagram sem o @ (ex.: ysadepaula.lash). Vazio = não aparece no site
   instagram: ""
   # endereço pelo qual as clientes acessam o chat (vai no link de confirmação por WhatsApp)
@@ -25,14 +25,28 @@ studio:
     SUNDAY: {abertura: "08:00", fechamento: "21:00"}
   # de quantos em quantos minutos a agenda oferece horários
   intervalo-minutos: 30
-  # de onde a profissional sai para o atendimento a domicílio (a distância é calculada a partir de cada um)
+  # de onde a profissional sai para o atendimento a domicílio em cada dia da semana;
+  # a taxa de deslocamento usa a distância a partir do ponto de saída do dia marcado
   pontos-partida:
     - nome: Studio (Boa Vista II)
       latitude: -16.049881
       longitude: -48.053676
+      dias: SATURDAY,SUNDAY
     - nome: Aquarela Baby Gama
       latitude: -15.970700
       longitude: -48.042900
+      dias: MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY
+  # taxa de deslocamento do atendimento a domicílio, pela distância de carro a partir do ponto de saída do dia.
+  # Abaixo da primeira faixa não cobra nada. Para mudar valores ou faixas, é só editar aqui.
+  taxas-deslocamento:
+    - a-partir-de-km: 10
+      valor: 15.00
+    - a-partir-de-km: 30
+      valor: 30.00
+  # sinal para garantir o horário de toda colocação: porcentagem do preço da técnica (0 = sem sinal)
+  sinal-percentual: 50
+  # chave Pix que a Sofi passa para a cliente pagar o sinal. Vazio = a Sofi diz que a profissional manda pelo WhatsApp
+  chave-pix: ""
 
   # Login do painel administrativo (troque a senha!)
   admin-usuario: admin

@@ -20,12 +20,24 @@ function adicionar(texto, quem) {
     caixa.scrollTop = caixa.scrollHeight;
 }
 
+/** Mostra as escolhas como botões; clicar num botão envia o texto dele como resposta. */
+function mostrarOpcoes(opcoes) {
+    sugestoes.replaceChildren(...opcoes.map((texto) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = texto;
+        b.onclick = () => enviar(texto);
+        return b;
+    }));
+    caixa.scrollTop = caixa.scrollHeight;
+}
+
 async function enviar(texto) {
     texto = texto.trim();
     if (!texto || ocupado) return;
     ocupado = true;
     form.querySelector('button').disabled = true;
-    sugestoes.remove();
+    mostrarOpcoes([]);
     adicionar(texto, 'cliente');
     entrada.value = '';
 
@@ -45,13 +57,15 @@ async function enviar(texto) {
         conversaId = dados.conversaId;
         digitando.remove();
         adicionar(dados.resposta, 'ia');
+        mostrarOpcoes(dados.opcoes || []);
     } catch (e) {
         digitando.remove();
         adicionar('Ops, perdi a conexão por um instante. Pode enviar de novo?', 'ia');
     } finally {
         ocupado = false;
         form.querySelector('button').disabled = false;
-        entrada.focus();
+        // no celular, não abre o teclado quando há botões para escolher
+        if (!sugestoes.children.length) entrada.focus();
     }
 }
 
@@ -59,7 +73,6 @@ form.onsubmit = (e) => {
     e.preventDefault();
     enviar(entrada.value);
 };
-sugestoes.querySelectorAll('button').forEach((b) => b.onclick = () => enviar(b.textContent));
 
 fetch('/api/chat/inicio' + (telefone ? '?tel=' + encodeURIComponent(telefone) : ''))
     .then((r) => r.json())
@@ -68,9 +81,7 @@ fetch('/api/chat/inicio' + (telefone ? '?tel=' + encodeURIComponent(telefone) : 
         document.getElementById('studio').textContent = d.studio;
         document.title = 'Agendamento · ' + d.studio;
         adicionar(d.saudacao, 'ia');
-        if (telefone) {
-            sugestoes.innerHTML = '<button>Sim, confirmo minha presença!</button><button>Preciso remarcar</button>';
-            sugestoes.querySelectorAll('button').forEach((b) => b.onclick = () => enviar(b.textContent));
-        }
+        mostrarOpcoes(telefone
+            ? ['Sim, confirmo minha presença!', 'Preciso remarcar']
+            : ['Quero agendar um horário', 'Quais técnicas vocês fazem?', 'Ver meus agendamentos']);
     });
-entrada.focus();

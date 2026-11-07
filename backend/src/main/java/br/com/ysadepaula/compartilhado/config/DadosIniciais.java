@@ -8,6 +8,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -39,6 +40,17 @@ public class DadosIniciais implements CommandLineRunner {
             servicos.findByAtivoTrueOrderByNome().forEach(s -> s.ativo = false);
             servicos.saveAll(catalogo());
         }
+        // nov/2026: o Lash Lifting volta por R$ 100,00, sem manutenção. O registro antigo (R$ 120,00) foi
+        // desativado na troca de catálogo; reaproveita ele uma única vez, porque depois o preço já não é 120
+        if (!servicos.existsByNomeAndAtivoTrue("Lash Lifting")) {
+            servicos.findFirstByNomeAndPrecoAndAtivoFalse("Lash Lifting", new BigDecimal("120.00")).ifPresent(s -> {
+                s.preco = new BigDecimal("100.00");
+                s.duracaoMinutos = 60;
+                s.precoManutencao = null;
+                s.duracaoManutencaoMinutos = null;
+                s.ativo = true;
+            });
+        }
         if (produtos.count() == 0) {
             produtos.saveAll(List.of(
                     new Produto("Fios 0.07 C 10mm", "Fios", "cx", "4", "2", "35.00"),
@@ -65,6 +77,7 @@ public class DadosIniciais implements CommandLineRunner {
                 new Servico("Volume Egípcio", "Fios em formato W para um volume marcante e uniforme.", 120, "150.00", 90, "80.00"),
                 new Servico("Volume Russo", "Leques de fios ultrafinos para um olhar cheio e marcante.", 120, "160.00", 90, "80.00"),
                 new Servico("Mega Volume", "Leques com muitos fios ultrafinos: o volume mais intenso.", 120, "170.00", 90, "90.00"),
-                new Servico("Fox Yes", "Fios alongados no canto externo que puxam o olhar, efeito raposa.", 120, "180.00", 90, "90.00"));
+                new Servico("Fox Yes", "Fios alongados no canto externo que puxam o olhar, efeito raposa.", 120, "180.00", 90, "90.00"),
+                new Servico("Lash Lifting", "Curvatura e tintura dos cílios naturais, dura de 6 a 8 semanas. Não tem manutenção.", 60, "100.00"));
     }
 }
