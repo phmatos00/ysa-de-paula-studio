@@ -38,6 +38,8 @@ public record StudioProperties(
         List<FaixaDeslocamento> taxasDeslocamento,
         /** Porcentagem do preço da colocação cobrada como sinal para garantir o horário (0 = sem sinal). */
         int sinalPercentual,
+        /** Atraso máximo aceito; acima disso (ou se a cliente desmarcar) o sinal não é devolvido. */
+        int toleranciaAtrasoMinutos,
         /** Chave Pix para o sinal; vazia = a profissional manda a chave pelo WhatsApp. */
         String chavePix,
         String adminUsuario,
@@ -92,6 +94,13 @@ public record StudioProperties(
         if (precoColocacao == null || sinalPercentual <= 0) return null;
         return precoColocacao.multiply(BigDecimal.valueOf(sinalPercentual))
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+    }
+
+    /** Regra de devolução do sinal e do deslocamento, em texto, para a atendente e o site. */
+    public String politicaCancelamento() {
+        return "o sinal não é devolvido se a cliente desmarcar ou se atrasar mais de " + toleranciaAtrasoMinutos
+                + " minutos, porque é uma segurança para o studio; já a taxa de deslocamento é devolvida se a "
+                + profissional + " ainda não tiver saído para o local";
     }
 
     /** Expediente do dia, ou null se o studio não abre nesse dia da semana. */

@@ -8,9 +8,10 @@ import java.util.regex.Pattern;
 /**
  * Resposta da atendente para a página de chat.
  *
- * @param opcoes escolhas que a página mostra como botões clicáveis (pode ser vazia)
+ * @param opcoes   escolhas que a página mostra como botões clicáveis (pode ser vazia)
+ * @param whatsapp link para a cliente finalizar com a profissional no WhatsApp, depois de agendar (ou null)
  */
-public record RespostaChatResponse(String conversaId, String resposta, List<String> opcoes) {
+public record RespostaChatResponse(String conversaId, String resposta, List<String> opcoes, String whatsapp) {
 
     private static final int MAX_OPCOES = 12;
     private static final int MAX_TAMANHO_OPCAO = 60;
@@ -19,7 +20,11 @@ public record RespostaChatResponse(String conversaId, String resposta, List<Stri
     private static final Pattern LINHA_OPCOES = Pattern.compile("(?imu)^[ \\t*_-]*OP[CÇ][OÕ]ES[ \\t*_]*:(.*)$");
 
     public RespostaChatResponse(String conversaId, String resposta) {
-        this(conversaId, resposta, List.of());
+        this(conversaId, resposta, List.of(), null);
+    }
+
+    public RespostaChatResponse comWhatsapp(String link) {
+        return new RespostaChatResponse(conversaId, resposta, opcoes, link);
     }
 
     /** Separa o texto da resposta da linha de opções, que vira a lista de botões. */
@@ -38,6 +43,6 @@ public record RespostaChatResponse(String conversaId, String resposta, List<Stri
                 .limit(MAX_OPCOES)
                 .toList();
         String texto = LINHA_OPCOES.matcher(textoDaIa).replaceAll("").trim();
-        return new RespostaChatResponse(conversaId, texto, opcoes);
+        return new RespostaChatResponse(conversaId, texto, opcoes, null);
     }
 }

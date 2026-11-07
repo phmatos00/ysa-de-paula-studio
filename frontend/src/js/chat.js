@@ -9,6 +9,7 @@ const telefone = parametros.get('tel');
 // vindo do card de uma técnica no site (/chat.html?servico=Volume%20Russo)
 const servicoEscolhido = (parametros.get('servico') || '').trim().slice(0, 60);
 let conversaId = null;
+let profissional = 'a profissional';
 let ocupado = false;
 
 function adicionar(texto, quem) {
@@ -32,6 +33,18 @@ function mostrarOpcoes(opcoes) {
         b.onclick = () => enviar(texto);
         return b;
     }));
+    caixa.scrollTop = caixa.scrollHeight;
+}
+
+/** Depois do agendamento: botão que abre o WhatsApp da profissional com o resumo já escrito. */
+function mostrarWhatsapp(link) {
+    const a = document.createElement('a');
+    a.className = 'botao-whatsapp';
+    a.href = link;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = `Finalizar no WhatsApp da ${profissional}`;
+    sugestoes.replaceChildren(a);
     caixa.scrollTop = caixa.scrollHeight;
 }
 
@@ -61,6 +74,7 @@ async function enviar(texto) {
         digitando.remove();
         adicionar(dados.resposta, 'ia');
         mostrarOpcoes(dados.opcoes || []);
+        if (dados.whatsapp) mostrarWhatsapp(dados.whatsapp);
     } catch (e) {
         digitando.remove();
         adicionar('Ops, perdi a conexão por um instante. Pode enviar de novo?', 'ia');
@@ -81,6 +95,7 @@ fetch('/api/chat/inicio' + (telefone ? '?tel=' + encodeURIComponent(telefone) : 
     .then((r) => r.json())
     .then((d) => {
         conversaId = d.conversaId;
+        profissional = d.profissional || profissional;
         document.getElementById('studio').textContent = d.studio;
         document.title = 'Agendamento · ' + d.studio;
         adicionar(d.saudacao, 'ia');

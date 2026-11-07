@@ -175,6 +175,11 @@ a.servico:hover .clique-agendar, a.servico:focus-visible .clique-agendar { backg
 
 .sugestoes { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 18px 12px; max-height: 38vh; overflow-y: auto; }
 .sugestoes:empty { display: none; }
+.sugestoes .botao-whatsapp {
+    flex: 1; display: block; padding: 14px 18px; border-radius: 999px; text-align: center; text-decoration: none;
+    background: #25d366; color: #fff; font-weight: 700; font-size: 15px; box-shadow: 0 6px 18px rgba(37, 211, 102, .3);
+}
+.sugestoes .botao-whatsapp:hover { background: #1fb457; }
 .sugestoes button { background: var(--superficie); color: var(--acento-escuro); border: 1px solid var(--borda-forte); font-weight: 600; font-size: 13px; padding: 8px 14px; }
 .sugestoes button:hover { background: var(--acento-claro); border-color: var(--acento); }
 

@@ -9,11 +9,10 @@ import br.com.ysadepaula.agenda.model.OrigemAgendamento;
 import br.com.ysadepaula.agenda.service.AgendaService;
 import br.com.ysadepaula.compartilhado.config.StudioProperties;
 import br.com.ysadepaula.compartilhado.util.Datas;
+import br.com.ysadepaula.compartilhado.util.WhatsApp;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -108,7 +107,6 @@ public class AgendaController {
                         + " garante o seu horário." : "")
                 + "\n\nPode confirmar sua presença por aqui: "
                 + studio.urlPublica() + "/chat.html?tel=" + a.cliente.telefone;
-        return "https://wa.me/55" + a.cliente.telefone + "?text=" + URLEncoder.encode(texto, StandardCharsets.UTF_8)
-                .replace("+", "%20");
+        return WhatsApp.link(a.cliente.telefone, texto);
     }
 }

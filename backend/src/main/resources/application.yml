@@ -45,6 +45,8 @@ studio:
       valor: 30.00
   # sinal para garantir o horário de toda colocação: porcentagem do preço da técnica (0 = sem sinal)
   sinal-percentual: 50
+  # o sinal não é devolvido se a cliente desmarcar ou atrasar mais que estes minutos
+  tolerancia-atraso-minutos: 20
   # chave Pix que a Sofi passa para a cliente pagar o sinal. Vazio = a Sofi diz que a profissional manda pelo WhatsApp
   chave-pix: ""
 

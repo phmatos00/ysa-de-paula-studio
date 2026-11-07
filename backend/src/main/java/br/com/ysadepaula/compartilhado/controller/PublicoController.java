@@ -28,6 +28,7 @@ public class PublicoController {
     public InfoStudioResponse studio() {
         return new InfoStudioResponse(studio.nome(), studio.profissional(), studio.especialidade(), studio.endereco(),
                 studio.descricaoDeslocamento(), studio.sinalPercentual() > 0 ? studio.sinalPercentual() : null,
+                studio.politicaCancelamento(),
                 studio.descricaoFuncionamento(), Cliente.normalizarTelefone(studio.whatsapp()), studio.instagram());
     }
 

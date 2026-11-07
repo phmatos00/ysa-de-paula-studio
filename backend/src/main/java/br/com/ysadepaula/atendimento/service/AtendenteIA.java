@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -49,6 +50,8 @@ public class AtendenteIA {
         final List<Map<String, Object>> mensagens = new ArrayList<>();
         String telefone;
         Instant ultimoAcesso = Instant.now();
+        /** Agendamento que a IA acabou de criar e que a página ainda não recebeu. */
+        Long agendamentoNovo;
     }
 
     private final Map<String, Conversa> conversas = new ConcurrentHashMap<>();
@@ -63,6 +66,20 @@ public class AtendenteIA {
         this.studio = studio;
         this.json = json;
         this.http = http.baseUrl(studio.iaUrl()).build();
+    }
+
+    /**
+     * ID do agendamento que a IA criou na última resposta desta conversa. Devolve uma vez só:
+     * a página mostra o botão do WhatsApp logo depois do agendamento, e não nas mensagens seguintes.
+     */
+    public Optional<Long> agendamentoCriado(String conversaId) {
+        Conversa conversa = conversas.get(conversaId);
+        if (conversa == null) return Optional.empty();
+        synchronized (conversa) {
+            Long id = conversa.agendamentoNovo;
+            conversa.agendamentoNovo = null;
+            return Optional.ofNullable(id);
+        }
     }
 
     public String saudacao(String telefone) {
@@ -125,7 +142,7 @@ public class AtendenteIA {
             for (Map<String, Object> chamada : chamadas) {
                 conversa.mensagens.add(Map.of("role", "tool",
                         "tool_call_id", String.valueOf(chamada.get("id")),
-                        "content", executar(chamada)));
+                        "content", executar(conversa, chamada)));
             }
         }
         return "Desculpa a demora! Pode repetir o que você precisa, por favor? 🙏";
@@ -189,7 +206,7 @@ public class AtendenteIA {
     }
 
     @SuppressWarnings("unchecked")
-    private String executar(Map<String, Object> chamada) {
+    private String executar(Conversa conversa, Map<String, Object> chamada) {
         Map<String, Object> funcao = chamada.get("function") instanceof Map<?, ?> f ? (Map<String, Object>) f : Map.of();
         String nome = String.valueOf(funcao.get("name"));
         try {
@@ -200,6 +217,9 @@ public class AtendenteIA {
                     });
             Object saida = ferramentas.executar(nome, entrada == null ? Map.of() : entrada);
             log.info("IA usou {} {}", nome, entrada);
+            if ("agendar".equals(nome) && saida instanceof Map<?, ?> m && m.get("agendamento_id") instanceof Long id) {
+                conversa.agendamentoNovo = id;
+            }
             return json.writeValueAsString(saida);
         } catch (NegocioException e) {
             return "Erro: " + e.getMessage();
@@ -251,8 +271,13 @@ public class AtendenteIA {
                 não tem sinal). Avise no resumo, antes de agendar. Depois de agendar, diga o valor do sinal e \
                 como pagar, usando o que a ferramenta agendar devolver em "sinal" e "como_pagar_sinal". \
                 O restante é pago no dia do atendimento.
+                - Regra de cancelamento (avise com carinho, no resumo antes de agendar, sempre que houver sinal \
+                ou taxa de deslocamento, e também se ela perguntar ou quiser cancelar): %s.
+                - Logo depois de agendar, a página mostra um botão para a cliente falar com a %s no WhatsApp, \
+                já com o resumo do agendamento. Termine dizendo, numa frase curta, para ela tocar no botão abaixo \
+                e finalizar o atendimento com a %s. Nessa mensagem não coloque a linha OPCOES.
                 - Para confirmar, remarcar ou cancelar, use o telefone da cliente para buscar os agendamentos \
-                dela. Antes de cancelar, ofereça remarcar.
+                dela. Antes de cancelar, ofereça remarcar e lembre a regra de cancelamento.
                 - Se a cliente não souber qual técnica escolher, explique as diferenças de forma simples e \
                 pergunte o efeito que ela deseja (natural, volume, marcante).
                 - Questões de saúde (alergia, irritação, gestação, cirurgia nos olhos) ou reclamações: acolha \
@@ -266,7 +291,8 @@ public class AtendenteIA {
                 - Taxa de deslocamento do atendimento a domicílio: %s.
 
                 Agora: %s, %s.
-                """.formatted(studio.nome(), studio.profissional(), studio.sinalPercentual(), studio.profissional(),
+                """.formatted(studio.nome(), studio.profissional(), studio.sinalPercentual(),
+                studio.politicaCancelamento(), studio.profissional(), studio.profissional(), studio.profissional(),
                 studio.endereco(),
                 studio.descricaoFuncionamento(), studio.descricaoDeslocamento(),
                 Datas.diaSemana(agora.toLocalDate()),
