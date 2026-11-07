@@ -38,6 +38,21 @@ public class Agendamento {
     @Column(length = 1000)
     public String observacoes;
 
+    /** false = colocação, true = manutenção. O default deixa o banco preencher as linhas que já existiam. */
+    @Column(columnDefinition = "boolean default false")
+    public boolean manutencao;
+
+    /** Atendimento na casa da cliente, em vez do studio. */
+    @Column(columnDefinition = "boolean default false")
+    public boolean domicilio;
+
+    @Column(length = 500)
+    public String enderecoAtendimento;
+
+    /** Distância de cada ponto de partida até a cliente, já em texto. Ex.: "Studio: 5,2 km (~12 min)". */
+    @Column(length = 500)
+    public String distancias;
+
     public LocalDateTime criadoEm = LocalDateTime.now();
 
     public boolean ocupaHorario() {

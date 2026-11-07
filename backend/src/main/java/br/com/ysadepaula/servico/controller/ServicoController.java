@@ -26,6 +26,9 @@ public class ServicoController {
     public Servico salvar(@RequestBody Servico s) {
         if (s.nome == null || s.nome.isBlank()) throw new NegocioException("Informe o nome do serviço.");
         if (s.duracaoMinutos <= 0) throw new NegocioException("Informe a duração em minutos.");
+        if (s.precoManutencao != null && (s.duracaoManutencaoMinutos == null || s.duracaoManutencaoMinutos <= 0)) {
+            throw new NegocioException("Informe a duração da manutenção em minutos.");
+        }
         s.ativo = true;
         return servicos.save(s);
     }

@@ -171,7 +171,7 @@ async function telaAgenda() {
             <p class="texto-suave">O botão abre o WhatsApp com a mensagem pronta e o link do chat, onde a Bia confirma com a cliente.</p>
             ${confirmacoes.map((c) => `<div class="lembrete">
                 <div class="quando">${esc(dataBR(c.agendamento.inicio))} · ${hora(c.agendamento.inicio)}</div>
-                <div class="quem">${esc(c.agendamento.cliente.nome)}<small>${esc(c.agendamento.servico.nome)}</small></div>
+                <div class="quem">${esc(c.agendamento.cliente.nome)}<small>${esc(c.agendamento.servico.nome)}${c.agendamento.manutencao ? ' (manutenção)' : ''}${c.agendamento.domicilio ? ' · 🏠 domicílio' : ''}</small></div>
                 <a class="botao pequeno verde" href="${esc(c.linkWhatsapp)}" target="_blank">${icone('whatsapp')}Enviar lembrete</a>
             </div>`).join('')}</div>` : ''}
         <div class="cartao"><div id="lista-dia"></div></div>`;
@@ -196,7 +196,8 @@ function renderizarAgendamentos(el, lista, recarregar) {
             <div class="hora">${hora(a.inicio)}<small>até ${hora(a.fim)}</small></div>
             <div class="info">
                 <div class="nome">${esc(a.cliente.nome)} <span class="selo ${a.status}">${STATUS[a.status]}</span> ${a.origem === 'IA' ? '<span class="selo IA">via IA</span>' : ''}</div>
-                <div class="detalhe">${esc(a.servico.nome)} · ${moeda(a.valor)} · <a href="https://wa.me/55${esc(a.cliente.telefone)}" target="_blank">${esc(telefoneBR(a.cliente.telefone))}</a></div>
+                <div class="detalhe">${esc(a.servico.nome)}${a.manutencao ? ' (manutenção)' : ''} · ${moeda(a.valor)} · <a href="https://wa.me/55${esc(a.cliente.telefone)}" target="_blank">${esc(telefoneBR(a.cliente.telefone))}</a></div>
+                ${a.domicilio ? `<div class="detalhe">🏠 Domicílio: ${esc(a.enderecoAtendimento)}<br>${a.distancias ? esc(a.distancias) : 'Distância não calculada (endereço não encontrado no mapa).'}</div>` : ''}
                 ${a.observacoes ? `<div class="detalhe">${esc(a.observacoes)}</div>` : ''}
             </div>
             <div class="botoes">
@@ -221,7 +222,7 @@ function renderizarAgendamentos(el, lista, recarregar) {
             await api('POST', `/api/agenda/${a.id}/concluir`, r);
             aviso('Atendimento concluído e lançado no financeiro 💰');
         } else if (acao === 'remarcar') {
-            const r = await escolherHorario(`Remarcar ${a.cliente.nome}`, a.servico.id, a.inicio.substring(0, 10));
+            const r = await escolherHorario(`Remarcar ${a.cliente.nome}`, a.servico.id, a.inicio.substring(0, 10), a.manutencao);
             if (!r) return;
             await api('POST', `/api/agenda/${a.id}/remarcar`, {inicio: r});
             aviso('Atendimento remarcado.');
@@ -236,10 +237,10 @@ function renderizarAgendamentos(el, lista, recarregar) {
 }
 
 /** Pede o dia e mostra só os horários livres para o serviço. Devolve "AAAA-MM-DDTHH:mm" ou null. */
-async function escolherHorario(titulo, servicoId, diaInicial) {
+async function escolherHorario(titulo, servicoId, diaInicial, manutencao = false) {
     const passo1 = await formulario(titulo, [{nome: 'dia', rotulo: 'Dia', tipo: 'date', valor: diaInicial, obrigatorio: true}], 'Ver horários');
     if (!passo1) return null;
-    const livres = await api('GET', `/api/agenda/horarios?dia=${passo1.dia}&servicoId=${servicoId}`);
+    const livres = await api('GET', `/api/agenda/horarios?dia=${passo1.dia}&servicoId=${servicoId}&manutencao=${manutencao}`);
     if (!livres.length) {
         aviso('Não há horários livres neste dia.', true);
         return null;
@@ -254,13 +255,24 @@ async function novoAgendamento() {
     const dados = await formulario('Novo agendamento', [
         {nome: 'nome', rotulo: 'Nome da cliente', obrigatorio: true},
         {nome: 'telefone', rotulo: 'WhatsApp com DDD', tipo: 'tel', obrigatorio: true},
-        {nome: 'servicoId', rotulo: 'Serviço', tipo: 'select', opcoes: servicosCache.map((s) => [s.id, `${s.nome} · ${moeda(s.preco)}`])},
+        {nome: 'servicoId', rotulo: 'Técnica', tipo: 'select', opcoes: servicosCache.map((s) => [s.id,
+            `${s.nome} · ${moeda(s.preco)}${s.precoManutencao != null ? ` (manut. ${moeda(s.precoManutencao)})` : ''}`])},
+        {nome: 'manutencao', rotulo: 'Tipo', tipo: 'select', opcoes: [['false', 'Colocação'], ['true', 'Manutenção']]},
+        {nome: 'domicilio', rotulo: 'Atendimento a domicílio (na casa da cliente)', tipo: 'checkbox'},
+        {nome: 'cep', rotulo: 'CEP da cliente (se for a domicílio)'},
+        {nome: 'endereco', rotulo: 'Endereço da cliente (se for a domicílio)'},
         {nome: 'observacoes', rotulo: 'Observações', tipo: 'textarea'},
     ], 'Escolher horário');
     if (!dados) return;
-    const inicio = await escolherHorario('Horário', dados.servicoId, diaAgenda);
+    if (dados.domicilio && !dados.endereco.trim()) {
+        aviso('Para atendimento a domicílio, informe o endereço da cliente.', true);
+        return;
+    }
+    const manutencao = dados.manutencao === 'true';
+    const inicio = await escolherHorario('Horário', dados.servicoId, diaAgenda, manutencao);
     if (!inicio) return;
-    await api('POST', '/api/agenda', {...dados, servicoId: Number(dados.servicoId), inicio});
+    const criado = await api('POST', '/api/agenda', {...dados, manutencao, servicoId: Number(dados.servicoId), inicio});
+    if (criado.domicilio && !criado.distancias) aviso('Agendado, mas não achei o endereço no mapa para calcular a distância.', true);
     aviso('Agendamento criado ✨');
     diaAgenda = inicio.substring(0, 10);
     telaAgenda();
@@ -401,10 +413,11 @@ async function telaServicos() {
     const servicos = await carregarServicos();
     conteudo.innerHTML = `
         ${cabecalho('Catálogo', 'Serviços', '<a class="botao secundario" href="/" target="_blank">Ver no site</a><button id="novo-servico">+ Novo serviço</button>')}
-        <div class="cartao tabela-rolavel"><p class="texto-suave">Estes são os serviços, preços e durações que a atendente virtual oferece às clientes.</p>
-            <table><thead><tr><th>Serviço</th><th>Descrição</th><th class="num">Duração</th><th class="num">Preço</th><th></th></tr></thead>
+        <div class="cartao tabela-rolavel"><p class="texto-suave">Estas são as técnicas, preços e durações (colocação e manutenção) que a atendente virtual oferece às clientes.</p>
+            <table><thead><tr><th>Técnica</th><th>Descrição</th><th class="num">Colocação</th><th class="num">Manutenção</th><th></th></tr></thead>
             <tbody>${servicos.map((s) => `<tr><td><strong>${esc(s.nome)}</strong></td><td class="texto-suave">${esc(s.descricao)}</td>
-                <td class="num">${s.duracaoMinutos} min</td><td class="num">${moeda(s.preco)}</td>
+                <td class="num">${moeda(s.preco)}<br><small class="texto-suave">${s.duracaoMinutos} min</small></td>
+                <td class="num">${s.precoManutencao != null ? `${moeda(s.precoManutencao)}<br><small class="texto-suave">${s.duracaoManutencaoMinutos} min</small>` : '—'}</td>
                 <td class="num"><button class="pequeno secundario" data-editar="${s.id}">Editar</button>
                 <button class="pequeno perigo" data-remover="${s.id}">Remover</button></td></tr>`).join('')}</tbody></table>
         </div>`;
@@ -421,11 +434,16 @@ async function editarServico(s) {
     const r = await formulario(s.id ? 'Editar serviço' : 'Novo serviço', [
         {nome: 'nome', rotulo: 'Nome', valor: s.nome, obrigatorio: true},
         {nome: 'descricao', rotulo: 'Descrição (a IA usa para explicar às clientes)', tipo: 'textarea', valor: s.descricao},
-        {nome: 'duracaoMinutos', rotulo: 'Duração (minutos)', tipo: 'number', valor: s.duracaoMinutos ?? 60, obrigatorio: true},
-        {nome: 'preco', rotulo: 'Preço (R$)', tipo: 'number', valor: s.preco, obrigatorio: true},
+        {nome: 'duracaoMinutos', rotulo: 'Duração da colocação (minutos)', tipo: 'number', valor: s.duracaoMinutos ?? 120, obrigatorio: true},
+        {nome: 'preco', rotulo: 'Preço da colocação (R$)', tipo: 'number', valor: s.preco, obrigatorio: true},
+        {nome: 'duracaoManutencaoMinutos', rotulo: 'Duração da manutenção (minutos, vazio = sem manutenção)', tipo: 'number', valor: s.duracaoManutencaoMinutos ?? 90},
+        {nome: 'precoManutencao', rotulo: 'Preço da manutenção (R$, vazio = sem manutenção)', tipo: 'number', valor: s.precoManutencao},
     ]);
     if (!r) return;
-    await api('POST', '/api/servicos', {...s, ...r, duracaoMinutos: Math.round(Number(r.duracaoMinutos))});
+    const temManutencao = r.precoManutencao !== '';
+    await api('POST', '/api/servicos', {...s, ...r, duracaoMinutos: Math.round(Number(r.duracaoMinutos)),
+        precoManutencao: temManutencao ? Number(r.precoManutencao) : null,
+        duracaoManutencaoMinutos: temManutencao ? Math.round(Number(r.duracaoManutencaoMinutos)) : null});
     aviso('Serviço salvo.');
     telaServicos();
 }

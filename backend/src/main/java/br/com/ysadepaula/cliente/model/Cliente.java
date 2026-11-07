@@ -21,6 +21,10 @@ public class Cliente {
     @Column(length = 1000)
     public String observacoes;
 
+    /** Último endereço usado em atendimento a domicílio. */
+    @Column(length = 500)
+    public String endereco;
+
     public LocalDateTime criadoEm = LocalDateTime.now();
 
     public static String normalizarTelefone(String telefone) {

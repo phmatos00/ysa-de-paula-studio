@@ -46,14 +46,14 @@ public class AgendaController {
 
     @GetMapping("/horarios")
     public List<LocalTime> horarios(@RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dia,
-                                    @RequestParam Long servicoId) {
-        return agenda.horariosDisponiveis(dia, servicoId);
+                                    @RequestParam Long servicoId,
+                                    @RequestParam(defaultValue = "false") boolean manutencao) {
+        return agenda.horariosDisponiveis(dia, servicoId, manutencao);
     }
 
     @PostMapping
     public Agendamento criar(@RequestBody NovoAgendamentoRequest req) {
-        return agenda.agendar(req.nome(), req.telefone(), req.servicoId(), req.inicio(), req.observacoes(),
-                OrigemAgendamento.PAINEL);
+        return agenda.agendar(req, OrigemAgendamento.PAINEL);
     }
 
     @PostMapping("/{id}/confirmar")
@@ -95,7 +95,8 @@ public class AgendaController {
     private String linkWhatsapp(Agendamento a) {
         String primeiroNome = a.cliente.nome.split(" ")[0];
         String texto = "Oi, " + primeiroNome + "! Tudo bem? 💕 Passando para lembrar do seu horário de "
-                + a.servico.nome + " no studio " + studio.nome() + ", " + a.inicio.format(DIA_SEMANA)
+                + (a.manutencao ? "manutenção de " : "") + a.servico.nome
+                + (a.domicilio ? " (atendimento na sua casa)" : " no studio " + studio.nome()) + ", " + a.inicio.format(DIA_SEMANA)
                 + " às " + a.inicio.toLocalTime() + ".\n\nPode confirmar sua presença por aqui: "
                 + studio.urlPublica() + "/chat.html?tel=" + a.cliente.telefone;
         return "https://wa.me/55" + a.cliente.telefone + "?text=" + URLEncoder.encode(texto, StandardCharsets.UTF_8)

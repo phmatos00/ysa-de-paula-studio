@@ -6,12 +6,19 @@ import br.com.ysadepaula.servico.model.Servico;
 import br.com.ysadepaula.servico.repository.ServicoRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/** Na primeira execução, cadastra serviços e produtos de exemplo (podem ser editados no painel). */
+/**
+ * Cadastra as técnicas e os produtos iniciais (podem ser editados no painel). Os dois blocos são idempotentes:
+ * rodam a cada inicialização, mas só gravam quando ainda falta o que eles cadastram.
+ */
 @Component
 public class DadosIniciais implements CommandLineRunner {
+
+    /** Serviço do catálogo antigo; enquanto estiver ativo, o catálogo ainda não foi trocado pelo de 2026. */
+    private static final String SERVICO_DO_CATALOGO_ANTIGO = "Design de Sobrancelhas";
 
     private final ServicoRepository servicos;
     private final ProdutoRepository produtos;
@@ -22,16 +29,15 @@ public class DadosIniciais implements CommandLineRunner {
     }
 
     @Override
+    @Transactional
     public void run(String... args) {
         if (servicos.count() == 0) {
-            servicos.saveAll(List.of(
-                    new Servico("Extensão Fio a Fio", "Um fio sintético aplicado em cada cílio natural. Efeito natural e delicado.", 120, "150.00"),
-                    new Servico("Volume Brasileiro", "Fios em formato Y que dão mais volume mantendo leveza.", 120, "170.00"),
-                    new Servico("Volume Russo", "Fans de vários fios ultrafinos para um olhar marcante e cheio.", 150, "200.00"),
-                    new Servico("Manutenção", "Reposição dos fios em até 21 dias após a aplicação.", 90, "100.00"),
-                    new Servico("Lash Lifting", "Curvatura e tintura dos cílios naturais, dura de 6 a 8 semanas.", 60, "120.00"),
-                    new Servico("Remoção de Extensão", "Remoção segura dos fios sem danificar os cílios naturais.", 30, "40.00"),
-                    new Servico("Design de Sobrancelhas", "Design personalizado com pinça e linha.", 30, "45.00")));
+            servicos.saveAll(catalogo());
+        } else if (servicos.existsByNomeAndAtivoTrue(SERVICO_DO_CATALOGO_ANTIGO)) {
+            // troca de catálogo: os serviços antigos são desativados (e não apagados) porque os
+            // agendamentos já feitos continuam apontando para eles no histórico
+            servicos.findByAtivoTrueOrderByNome().forEach(s -> s.ativo = false);
+            servicos.saveAll(catalogo());
         }
         if (produtos.count() == 0) {
             produtos.saveAll(List.of(
@@ -44,5 +50,21 @@ public class DadosIniciais implements CommandLineRunner {
                     new Produto("Fita micropore", "Descartáveis", "un", "6", "3", "4.50"),
                     new Produto("Patch de gel (pares)", "Descartáveis", "pct", "3", "2", "25.00")));
         }
+    }
+
+    /** Técnicas de colocação: nome, descrição, duração e preço da colocação, duração e preço da manutenção. */
+    private static List<Servico> catalogo() {
+        return List.of(
+                new Servico("Efeito Rímel", "Fios finos que imitam cílios com rímel: olhar definido e natural.", 120, "130.00", 90, "80.00"),
+                new Servico("Efeito Rímel Extreme", "Versão mais intensa do efeito rímel, com fios mais marcados.", 120, "135.00", 90, "80.00"),
+                new Servico("Efeito Molhado", "Fios agrupados em pontinhas, como cílios recém-molhados.", 120, "140.00", 90, "80.00"),
+                new Servico("Efeito Glow", "Efeito iluminado e leve, que abre o olhar.", 120, "145.00", 90, "80.00"),
+                new Servico("Efeito Sirena", "Mais comprimento no canto externo, para um olhar alongado de sereia.", 120, "140.00", 90, "80.00"),
+                new Servico("Volume Brasileiro", "Fios em formato Y que dão mais volume mantendo leveza.", 120, "140.00", 90, "80.00"),
+                new Servico("Volume Inglês", "Volume cheio com fios de várias pontas.", 120, "150.00", 90, "80.00"),
+                new Servico("Volume Egípcio", "Fios em formato W para um volume marcante e uniforme.", 120, "150.00", 90, "80.00"),
+                new Servico("Volume Russo", "Leques de fios ultrafinos para um olhar cheio e marcante.", 120, "160.00", 90, "80.00"),
+                new Servico("Mega Volume", "Leques com muitos fios ultrafinos: o volume mais intenso.", 120, "170.00", 90, "90.00"),
+                new Servico("Fox Yes", "Fios alongados no canto externo que puxam o olhar, efeito raposa.", 120, "180.00", 90, "90.00"));
     }
 }

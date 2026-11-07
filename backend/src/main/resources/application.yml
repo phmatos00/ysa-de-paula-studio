@@ -7,18 +7,32 @@ studio:
   profissional: Ysa
   # aparece embaixo do nome, no título das páginas e no rodapé
   especialidade: Lash Designer
-  endereco: Rua Exemplo, 123 - Centro
+  endereco: Quadra 14, Rua 10, Casa 39 - Boa Vista II, Novo Gama - GO, CEP 72862-114
   # WhatsApp do studio, com DDD (ex.: 11987654321). Vazio = não aparece no site
   whatsapp: ""
   # Instagram sem o @ (ex.: ysadepaula.lash). Vazio = não aparece no site
   instagram: ""
   # endereço pelo qual as clientes acessam o chat (vai no link de confirmação por WhatsApp)
   url-publica: ${URL_PUBLICA:http://localhost:8080}
-  abertura: "09:00"
-  fechamento: "19:00"
-  dias-funcionamento: TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY
+  # horário de cada dia da semana; para fechar um dia, apague a linha dele
+  horarios:
+    MONDAY: {abertura: "18:40", fechamento: "21:00"}
+    TUESDAY: {abertura: "18:40", fechamento: "21:00"}
+    WEDNESDAY: {abertura: "18:40", fechamento: "21:00"}
+    THURSDAY: {abertura: "18:40", fechamento: "21:00"}
+    FRIDAY: {abertura: "18:40", fechamento: "21:00"}
+    SATURDAY: {abertura: "08:00", fechamento: "21:00"}
+    SUNDAY: {abertura: "08:00", fechamento: "21:00"}
   # de quantos em quantos minutos a agenda oferece horários
   intervalo-minutos: 30
+  # de onde a profissional sai para o atendimento a domicílio (a distância é calculada a partir de cada um)
+  pontos-partida:
+    - nome: Studio (Boa Vista II)
+      latitude: -16.049881
+      longitude: -48.053676
+    - nome: Aquarela Baby Gama
+      latitude: -15.970700
+      longitude: -48.042900
 
   # Login do painel administrativo (troque a senha!)
   admin-usuario: admin

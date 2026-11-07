@@ -1,5 +1,6 @@
 package br.com.ysadepaula.atendimento.ferramenta;
 
+import br.com.ysadepaula.agenda.dto.NovoAgendamentoRequest;
 import br.com.ysadepaula.agenda.model.Agendamento;
 import br.com.ysadepaula.agenda.model.OrigemAgendamento;
 import br.com.ysadepaula.agenda.service.AgendaService;
@@ -36,24 +37,33 @@ public class FerramentasAtendimento {
     public List<Map<String, Object>> definicoes() {
         Map<String, Object> telefone = prop("string", "Telefone da cliente com DDD, só números. Ex.: 11987654321");
         Map<String, Object> agendamentoId = prop("integer", "ID do agendamento, obtido em buscar_agendamentos");
+        Map<String, Object> tipo = Map.of("type", "string", "enum", List.of("colocacao", "manutencao"),
+                "description", "colocacao (aplicação nova) ou manutencao (reposição dos fios)");
         return List.of(
                 tool("listar_servicos",
-                        "Lista os serviços do studio com ID, descrição, duração e preço. Use antes de falar de preços ou de agendar.",
+                        "Lista as técnicas do studio com ID, descrição, duração e preço da colocação e da manutenção. "
+                                + "Use antes de falar de preços ou de agendar.",
                         Map.of(), List.of()),
                 tool("consultar_horarios",
-                        "Retorna os horários livres de um dia para um serviço. Use sempre antes de oferecer horários.",
+                        "Retorna os horários livres de um dia para uma técnica. Use sempre antes de oferecer horários.",
                         Map.of("data", prop("string", "Dia no formato AAAA-MM-DD"),
-                                "servico_id", prop("integer", "ID do serviço")),
-                        List.of("data", "servico_id")),
+                                "servico_id", prop("integer", "ID do serviço"),
+                                "tipo", tipo),
+                        List.of("data", "servico_id", "tipo")),
                 tool("agendar",
-                        "Cria o agendamento. Só use depois que a cliente concordar com serviço, dia e horário e informar nome e telefone.",
+                        "Cria o agendamento. Só use depois que a cliente concordar com técnica, tipo, local, dia e "
+                                + "horário e informar nome e telefone (e o endereço, se for em casa).",
                         Map.of("nome", prop("string", "Nome completo da cliente"),
                                 "telefone", telefone,
                                 "servico_id", prop("integer", "ID do serviço"),
+                                "tipo", tipo,
                                 "data", prop("string", "Dia no formato AAAA-MM-DD"),
                                 "horario", prop("string", "Horário de início no formato HH:mm"),
+                                "domicilio", prop("boolean", "true se a cliente quer ser atendida em casa"),
+                                "endereco", prop("string", "Endereço completo da cliente (obrigatório se domicilio for true)"),
+                                "cep", prop("string", "CEP da cliente, só números (se domicilio for true)"),
                                 "observacoes", prop("string", "Observações úteis para a profissional (opcional)")),
-                        List.of("nome", "telefone", "servico_id", "data", "horario")),
+                        List.of("nome", "telefone", "servico_id", "tipo", "data", "horario")),
                 tool("buscar_agendamentos",
                         "Lista os próximos agendamentos da cliente pelo telefone.",
                         Map.of("telefone", telefone), List.of("telefone")),
@@ -79,14 +89,16 @@ public class FerramentasAtendimento {
             case "listar_servicos" -> servicos.findByAtivoTrueOrderByNome().stream().map(this::resumo).toList();
             case "consultar_horarios" -> {
                 LocalDate dia = LocalDate.parse(texto(in, "data"));
-                List<String> livres = agenda.horariosDisponiveis(dia, numero(in, "servico_id")).stream()
+                List<String> livres = agenda.horariosDisponiveis(dia, numero(in, "servico_id"), manutencao(in)).stream()
                         .map(LocalTime::toString).toList();
                 yield Map.of("data", dia.toString(), "dia_semana", diaSemana(dia),
                         "horarios_livres", livres,
                         "observacao", livres.isEmpty() ? "Sem horários livres (ou o studio não abre neste dia)." : "");
             }
-            case "agendar" -> resumo(agenda.agendar(texto(in, "nome"), texto(in, "telefone"), numero(in, "servico_id"),
-                    dataHora(in), (String) in.get("observacoes"), OrigemAgendamento.IA));
+            case "agendar" -> resumo(agenda.agendar(new NovoAgendamentoRequest(texto(in, "nome"), texto(in, "telefone"),
+                    numero(in, "servico_id"), dataHora(in), opcional(in, "observacoes"), manutencao(in),
+                    Boolean.parseBoolean(String.valueOf(in.get("domicilio"))), opcional(in, "cep"),
+                    opcional(in, "endereco")), OrigemAgendamento.IA));
             case "buscar_agendamentos" -> agenda.proximosDaCliente(texto(in, "telefone")).stream()
                     .filter(Agendamento::ocupaHorario).map(this::resumo).toList();
             case "confirmar_agendamento" -> resumo(agenda.confirmar(daCliente(in).id));
@@ -110,9 +122,15 @@ public class FerramentasAtendimento {
         m.put("id", s.id);
         m.put("nome", s.nome);
         m.put("descricao", s.descricao);
-        m.put("duracao_minutos", s.duracaoMinutos);
-        m.put("preco", "R$ " + s.preco.toPlainString().replace('.', ','));
+        m.put("colocacao", "R$ " + reais(s.preco) + " (" + s.duracaoMinutos + " min)");
+        m.put("manutencao", s.temManutencao()
+                ? "R$ " + reais(s.precoManutencao) + " (" + s.duracaoManutencaoMinutos + " min)"
+                : "não tem manutenção");
         return m;
+    }
+
+    private static String reais(java.math.BigDecimal valor) {
+        return valor.toPlainString().replace('.', ',');
     }
 
     private Map<String, Object> resumo(Agendamento a) {
@@ -120,6 +138,9 @@ public class FerramentasAtendimento {
         m.put("agendamento_id", a.id);
         m.put("cliente", a.cliente.nome);
         m.put("servico", a.servico.nome);
+        m.put("tipo", a.manutencao ? "manutenção" : "colocação");
+        m.put("valor", "R$ " + reais(a.valor));
+        m.put("local", a.domicilio ? "na casa da cliente: " + a.enderecoAtendimento : "no studio");
         m.put("data", a.inicio.toLocalDate().toString());
         m.put("dia_semana", diaSemana(a.inicio.toLocalDate()));
         m.put("horario", a.inicio.toLocalTime().toString());
@@ -136,6 +157,15 @@ public class FerramentasAtendimento {
         Object v = in.get(campo);
         if (v == null || v.toString().isBlank()) throw new NegocioException("Campo obrigatório ausente: " + campo);
         return v.toString();
+    }
+
+    private static String opcional(Map<String, Object> in, String campo) {
+        Object v = in.get(campo);
+        return v == null || v.toString().isBlank() ? null : v.toString();
+    }
+
+    private static boolean manutencao(Map<String, Object> in) {
+        return "manutencao".equalsIgnoreCase(String.valueOf(in.get("tipo")).replace("ç", "c").replace("ã", "a"));
     }
 
     private static Long numero(Map<String, Object> in, String campo) {

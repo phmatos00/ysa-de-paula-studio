@@ -58,7 +58,9 @@
 .servico h3 { font-family: var(--serif); font-size: 25px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--texto); margin: 0 0 8px; }
 .servico p { color: var(--suave); margin: 0 0 22px; flex: 1; }
 .servico .rodape-servico { display: flex; justify-content: space-between; align-items: center; padding-top: 18px; border-top: 1px solid var(--borda); }
-.servico .preco { font-family: var(--serif); font-size: 26px; font-weight: 600; color: var(--acento-escuro); }
+.servico .preco { font-family: var(--serif); font-size: 26px; font-weight: 600; color: var(--acento-escuro); line-height: 1.1; }
+.servico .preco small { display: block; font-family: var(--sans); font-size: 10.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--suave); }
+.servico .preco.manutencao { font-size: 21px; color: var(--texto); }
 .servico .duracao { font-size: 12.5px; color: var(--suave); display: flex; align-items: center; gap: 6px; }
 
 .faixa-info { background: var(--superficie); border-top: 1px solid var(--borda); border-bottom: 1px solid var(--borda); }

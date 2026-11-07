@@ -17,18 +17,15 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
-import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * Atendente virtual das clientes. Usa um modelo de IA com ferramentas (function calling): a cada mensagem da
@@ -214,9 +211,6 @@ public class AtendenteIA {
 
     private String promptSistema(String telefoneConhecido) {
         LocalDateTime agora = LocalDateTime.now();
-        String dias = studio.diasFuncionamento().stream().sorted(Comparator.comparing(DayOfWeek::getValue))
-                .map(Datas::nomeDia)
-                .collect(Collectors.joining(", "));
         String prompt = """
                 Você é a Bia, assistente virtual do studio %s, da lash designer %s, especializado em extensão \
                 de cílios e cuidados com o olhar. Você atende as clientes por chat: tira dúvidas, agenda, confirma, \
@@ -231,8 +225,12 @@ public class AtendenteIA {
                 Como trabalhar:
                 - Serviços, preços e horários vêm sempre das ferramentas. Nunca invente valores ou horários.
                 - Ofereça poucas opções de horário por vez (3 ou 4), perto do que a cliente pediu.
-                - Antes de agendar, recapitule serviço, dia, horário e valor e peça o nome completo e o \
-                telefone com DDD. Só agende depois que ela concordar.
+                - Cada técnica tem dois tipos de atendimento: colocação (aplicação nova) e manutenção \
+                (reposição dos fios), com preços e durações diferentes. Pergunte qual dos dois ela quer.
+                - O atendimento pode ser no studio ou na casa da cliente (domicílio). Pergunte onde ela prefere. \
+                Se for em casa, peça o endereço completo e o CEP.
+                - Antes de agendar, recapitule técnica, tipo, local, dia, horário e valor e peça o nome completo \
+                e o telefone com DDD. Só agende depois que ela concordar.
                 - Para confirmar, remarcar ou cancelar, use o telefone da cliente para buscar os agendamentos \
                 dela. Antes de cancelar, ofereça remarcar.
                 - Se a cliente não souber qual técnica escolher, explique as diferenças de forma simples e \
@@ -244,11 +242,11 @@ public class AtendenteIA {
 
                 Informações do studio:
                 - Endereço: %s
-                - Funcionamento: %s, das %s às %s.
+                - Funcionamento: %s.
 
                 Agora: %s, %s.
                 """.formatted(studio.nome(), studio.profissional(), studio.profissional(), studio.endereco(),
-                dias, studio.abertura(), studio.fechamento(),
+                studio.descricaoFuncionamento(),
                 Datas.diaSemana(agora.toLocalDate()),
                 agora.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
         if (studio.whatsapp() != null && !studio.whatsapp().isBlank()) {

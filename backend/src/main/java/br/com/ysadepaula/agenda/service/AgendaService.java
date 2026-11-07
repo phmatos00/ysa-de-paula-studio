@@ -1,5 +1,6 @@
 package br.com.ysadepaula.agenda.service;
 
+import br.com.ysadepaula.agenda.dto.NovoAgendamentoRequest;
 import br.com.ysadepaula.agenda.model.Agendamento;
 import br.com.ysadepaula.agenda.model.OrigemAgendamento;
 import br.com.ysadepaula.agenda.model.StatusAgendamento;
@@ -8,6 +9,7 @@ import br.com.ysadepaula.cliente.model.Cliente;
 import br.com.ysadepaula.cliente.repository.ClienteRepository;
 import br.com.ysadepaula.compartilhado.config.StudioProperties;
 import br.com.ysadepaula.compartilhado.exception.NegocioException;
+import br.com.ysadepaula.deslocamento.service.DistanciaService;
 import br.com.ysadepaula.financeiro.service.FinanceiroService;
 import br.com.ysadepaula.servico.model.Servico;
 import br.com.ysadepaula.servico.repository.ServicoRepository;
@@ -28,14 +30,17 @@ public class AgendaService {
     private final ServicoRepository servicos;
     private final FinanceiroService financeiro;
     private final StudioProperties studio;
+    private final DistanciaService distancia;
 
     public AgendaService(AgendamentoRepository agendamentos, ClienteRepository clientes,
-                         ServicoRepository servicos, FinanceiroService financeiro, StudioProperties studio) {
+                         ServicoRepository servicos, FinanceiroService financeiro, StudioProperties studio,
+                         DistanciaService distancia) {
         this.agendamentos = agendamentos;
         this.clientes = clientes;
         this.servicos = servicos;
         this.financeiro = financeiro;
         this.studio = studio;
+        this.distancia = distancia;
     }
 
     public List<Agendamento> doDia(LocalDate dia) {
@@ -59,19 +64,22 @@ public class AgendaService {
                 LocalDateTime.now(), amanha.plusDays(1).atStartOfDay());
     }
 
-    /** Horários de início livres para o serviço no dia informado. */
-    public List<LocalTime> horariosDisponiveis(LocalDate dia, Long servicoId) {
+    /** Horários de início livres no dia informado, para a colocação ou a manutenção do serviço. */
+    public List<LocalTime> horariosDisponiveis(LocalDate dia, Long servicoId, boolean manutencao) {
         Servico servico = buscarServico(servicoId);
+        exigirManutencao(servico, manutencao);
         List<LocalTime> livres = new ArrayList<>();
-        if (!studio.diasFuncionamento().contains(dia.getDayOfWeek())) return livres;
+        StudioProperties.Expediente expediente = studio.expediente(dia.getDayOfWeek());
+        if (expediente == null) return livres;
 
+        int duracao = servico.duracao(manutencao);
         List<Agendamento> ocupados = doDia(dia).stream().filter(Agendamento::ocupaHorario).toList();
         LocalDateTime agora = LocalDateTime.now();
-        LocalDateTime fechamento = dia.atTime(studio.fechamento());
-        for (LocalDateTime inicio = dia.atTime(studio.abertura());
-             !inicio.plusMinutes(servico.duracaoMinutos).isAfter(fechamento);
+        LocalDateTime fechamento = dia.atTime(expediente.fechamento());
+        for (LocalDateTime inicio = dia.atTime(expediente.abertura());
+             !inicio.plusMinutes(duracao).isAfter(fechamento);
              inicio = inicio.plusMinutes(studio.intervaloMinutos())) {
-            LocalDateTime ini = inicio, fim = inicio.plusMinutes(servico.duracaoMinutos);
+            LocalDateTime ini = inicio, fim = inicio.plusMinutes(duracao);
             if (ini.isBefore(agora)) continue;
             boolean conflita = ocupados.stream().anyMatch(a -> ini.isBefore(a.fim) && fim.isAfter(a.inicio));
             if (!conflita) livres.add(ini.toLocalTime());
@@ -80,21 +88,34 @@ public class AgendaService {
     }
 
     @Transactional
-    public Agendamento agendar(String nome, String telefone, Long servicoId, LocalDateTime inicio,
-                               String observacoes, OrigemAgendamento origem) {
-        Servico servico = buscarServico(servicoId);
-        if (!horariosDisponiveis(inicio.toLocalDate(), servicoId).contains(inicio.toLocalTime())) {
+    public Agendamento agendar(NovoAgendamentoRequest req, OrigemAgendamento origem) {
+        Servico servico = buscarServico(req.servicoId());
+        boolean manutencao = req.ehManutencao();
+        LocalDateTime inicio = req.inicio();
+        if (inicio == null) throw new NegocioException("Informe o dia e o horário.");
+        if (!horariosDisponiveis(inicio.toLocalDate(), servico.id, manutencao).contains(inicio.toLocalTime())) {
             throw new NegocioException("O horário " + inicio.toLocalTime() + " de " + inicio.toLocalDate()
                     + " não está disponível para " + servico.nome + ".");
         }
         Agendamento a = new Agendamento();
-        a.cliente = clientePorTelefone(nome, telefone);
+        a.cliente = clientePorTelefone(req.nome(), req.telefone());
         a.servico = servico;
+        a.manutencao = manutencao;
         a.inicio = inicio;
-        a.fim = inicio.plusMinutes(servico.duracaoMinutos);
-        a.valor = servico.preco;
-        a.observacoes = observacoes;
+        a.fim = inicio.plusMinutes(servico.duracao(manutencao));
+        a.valor = servico.preco(manutencao);
+        a.observacoes = req.observacoes();
         a.origem = origem;
+        if (req.ehDomicilio()) {
+            if (req.endereco() == null || req.endereco().isBlank()) {
+                throw new NegocioException("Para atendimento a domicílio, informe o endereço da cliente.");
+            }
+            String cep = req.cep() == null ? "" : req.cep().replaceAll("\\D", "");
+            a.domicilio = true;
+            a.enderecoAtendimento = req.endereco().trim() + (cep.length() == 8 ? " - CEP " + cep.substring(0, 5) + "-" + cep.substring(5) : "");
+            a.distancias = distancia.resumo(cep, req.endereco());
+            a.cliente.endereco = a.enderecoAtendimento;
+        }
         return agendamentos.save(a);
     }
 
@@ -105,14 +126,14 @@ public class AgendaService {
         StatusAgendamento statusAnterior = a.status;
         a.status = StatusAgendamento.CANCELADO; // libera o horário atual para a checagem
         agendamentos.saveAndFlush(a);
-        if (!horariosDisponiveis(novoInicio.toLocalDate(), a.servico.id).contains(novoInicio.toLocalTime())) {
+        if (!horariosDisponiveis(novoInicio.toLocalDate(), a.servico.id, a.manutencao).contains(novoInicio.toLocalTime())) {
             a.status = statusAnterior;
             agendamentos.save(a);
             throw new NegocioException("O horário " + novoInicio.toLocalTime() + " de " + novoInicio.toLocalDate()
                     + " não está disponível.");
         }
         a.inicio = novoInicio;
-        a.fim = novoInicio.plusMinutes(a.servico.duracaoMinutos);
+        a.fim = novoInicio.plusMinutes(a.servico.duracao(a.manutencao));
         a.status = StatusAgendamento.PENDENTE;
         return agendamentos.save(a);
     }
@@ -158,6 +179,12 @@ public class AgendaService {
     private Servico buscarServico(Long id) {
         return servicos.findById(id).filter(s -> s.ativo)
                 .orElseThrow(() -> new NegocioException("Serviço " + id + " não encontrado."));
+    }
+
+    private static void exigirManutencao(Servico servico, boolean manutencao) {
+        if (manutencao && !servico.temManutencao()) {
+            throw new NegocioException(servico.nome + " não tem manutenção cadastrada.");
+        }
     }
 
     private void exigirAtivo(Agendamento a) {
