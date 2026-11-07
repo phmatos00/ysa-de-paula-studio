@@ -39,9 +39,14 @@ fetch('/api/publico/studio').then((r) => r.json()).then((s) => {
     }
 });
 
+// "Volume Inglês" vira "volume-ingles": é o nome da foto em /img/tecnicas
+const slug = (nome) => nome.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+
 fetch('/api/publico/servicos').then((r) => r.json()).then((lista) => {
-    document.getElementById('lista-servicos').innerHTML = lista.map((s) => `
+    const grade = document.getElementById('lista-servicos');
+    grade.innerHTML = lista.map((s) => `
         <article class="servico">
+            <img class="foto-tecnica" src="/img/tecnicas/${slug(s.nome)}.jpg" alt="Exemplo de ${esc(s.nome)}" loading="lazy">
             <h3>${esc(s.nome)}</h3>
             <p>${esc(s.descricao)}</p>
             <div class="rodape-servico">
@@ -50,4 +55,11 @@ fetch('/api/publico/servicos').then((r) => r.json()).then((lista) => {
                 <span class="duracao"><svg class="icone" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>${duracao(s.duracaoMinutos)}</span>
             </div>
         </article>`).join('');
+    // técnica sem foto (ex.: cadastrada depois no painel): troca o ícone quebrado por um quadro "foto em breve"
+    grade.querySelectorAll('.foto-tecnica').forEach((img) => img.addEventListener('error', () => {
+        const vazio = document.createElement('div');
+        vazio.className = 'foto-tecnica sem-foto';
+        vazio.textContent = 'Foto em breve';
+        img.replaceWith(vazio);
+    }));
 });

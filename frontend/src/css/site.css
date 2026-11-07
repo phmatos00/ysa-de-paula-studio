@@ -55,6 +55,15 @@
     transition: transform .2s, box-shadow .2s, border-color .2s;
 }
 .servico:hover { transform: translateY(-3px); box-shadow: var(--sombra); border-color: var(--dourado-claro); }
+.servico .foto-tecnica {
+    display: block; width: calc(100% + 56px); max-width: none; margin: -28px -28px 22px;
+    aspect-ratio: 4 / 3; object-fit: cover; object-position: center 45%;
+    border-radius: var(--raio) var(--raio) 0 0; background: var(--acento-claro);
+}
+.servico .sem-foto {
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-style: italic; font-size: 20px; color: var(--acento-escuro);
+}
 .servico h3 { font-family: var(--serif); font-size: 25px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--texto); margin: 0 0 8px; }
 .servico p { color: var(--suave); margin: 0 0 22px; flex: 1; }
 .servico .rodape-servico { display: flex; justify-content: space-between; align-items: center; padding-top: 18px; border-top: 1px solid var(--borda); }
